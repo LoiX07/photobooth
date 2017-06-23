@@ -1,6 +1,6 @@
 # Imports
 import exceptions
-import RPi.GPIO as GPIO
+import wiringpi2 as wiringpi
 from time import sleep
 from picamera import PiCamera
 
@@ -8,45 +8,55 @@ from picamera import PiCamera
 ##################
 ### Parameters ###
 ##################
-gpio_lamp_channel = 
-gpio_trigger_channel =
-gpio_shutdown_channel = 
+gpio_lamp_channel = 18
+gpio_trigger_channel = 23
+gpio_shutdown_channel = 24
 picture_basename = datetime.now().strftime("%Y-%m-%d_Photomaton")
 
 #####################
 ### Configuration ###
 #####################
-GPIO.setmode(GPIO.BCM)
-
-
+wiringpi.wiringPiSetup()
 
 ###############
 ### Classes ###
 ###############
 class Camera:
 """ Objet camera """
-    def takeAPicture(self):
+    
+    def prepareCamera(self):
+        """ Préparation de la camera pour la photo"""
+        raise NotImplemented
+
+    def takeAPicture(self,path):
         raise NotImplemented
 
 class Raspicam(Camera):
 """ Camera Raspberry """
+    def prepareCamera(self):
+
     def __init__(self):
         self.camera = PiCamera()
 
-    def takeAPicture(self):
+    def takeAPicture(self,path):
 
 class ReflexCam(Camera):
 """ Appareil photo REFLEX """
-    def takeAPicture(self):
+    def prepareCamera(self):
+
+    def takeAPicture(self,path):
 
 class Lamp:
 """ Eclairage Photobooth """
     def __init__(channel):
     """ Initialisation """
         self.channel = channel
+        wiringpi.pinMode(channel,2)
+        wiringpi.pwmSetMode(channel,0)
     
-    def setLevel(level)
+    def setLevel(level):
     """ Modification du coefficient de l'éclairage, entre 0 et 1 """
+        wiringpi.pwmWrite(self.channel,level*1024)    
 
 class CountDisplay
 """ 7 segment display """
@@ -63,12 +73,18 @@ class Photobooth:
         self.camera = 0000
         self.countDisplay = CountDisplay()
         self.lamp = Lamp(lamp_channel)
-        ### self.gpio = GPIO(self.handle_gpio, input_channels, output_channels)
-        ### Ajouter la détection d'évènements
+        # Détection d'évènements
+        wiringpi.pinMode(trigger_channel,0)
+        wiringpi.pullUpDnControl(trigger_channel,1)
+        wiringpi.wiringPISR(trigger_channel,2,takePicture)
+        wiringpi.pinMode(shutdown_channel,0)
+        wiringpi.pullUpDnControl(shutdown_channel,1)
+        wiringpi.wiringPISR(trigger_shutdown,2,quit)
+        
 
     def quit(self):
         self.lamp.level(0)
-        GPIO.cleanup()
+        # GPIO.cleanup()
 
 # Constante
 versionCamera = 1 # 1 ou 2 en fonction de la version de la pi camera utilisée

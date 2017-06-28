@@ -16,13 +16,13 @@ picture_basename = datetime.now().strftime("%Y-%m-%d_Photomaton")
 #####################
 ### Configuration ###
 #####################
-wiringpi.wiringPiSetup()
+wiringpi.wiringPiSetup() # use wiringpi numerotation
 
 ###############
 ### Classes ###
 ###############
 class Camera:
-""" Objet camera """
+    """ Objet camera """
     
     def prepareCamera(self):
         """ Préparation de la camera pour la photo"""
@@ -32,39 +32,45 @@ class Camera:
         raise NotImplemented
 
 class Raspicam(Camera):
-""" Camera Raspberry """
+    """ Camera Raspberry """
     def prepareCamera(self):
+        """ Camera preparation """
 
     def __init__(self):
         self.camera = PiCamera()
 
     def takeAPicture(self,path):
+        """ Take a picture with the camera """
 
 class ReflexCam(Camera):
-""" Appareil photo REFLEX """
+    """ REFLEX Camera """
     def prepareCamera(self):
+        """ Prepare the camera for the picture """
 
     def takeAPicture(self,path):
+        """ Take a picture with the camera """
 
 class Lamp:
-""" Eclairage Photobooth """
+    """ Eclairage Photobooth """
     def __init__(channel):
-    """ Initialisation """
+        """ Initialisation """
         self.channel = channel
         wiringpi.pinMode(channel,2)
         wiringpi.pwmSetMode(channel,0)
+        wiringpi.pwmWrite(0.1*1024)
     
     def setLevel(level):
-    """ Modification du coefficient de l'éclairage, entre 0 et 1 """
+        """ Modification du coefficient de l'éclairage, entre 0 et 1 """
         wiringpi.pwmWrite(self.channel,level*1024)    
 
-class CountDisplay
-""" 7 segment display """
+class CountDisplay:
+    """ 7 segment display """
 
 class Photobooth:
-""" Photobooth """
+    """ Photobooth """
     
     def __init__(self,picture_basename,picture_size,trigger_channel, shutdown_channel, lamp_channel):
+        """ Initialisation """
         # Initialize the parameters
         self.trigger_channel = trigger_channel
         self.shutdown_channel = shutdown_channel

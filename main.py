@@ -11,12 +11,13 @@ from picamera import PiCamera
 gpio_lamp_channel = 18
 gpio_trigger_channel = 23
 gpio_shutdown_channel = 24
+gpio_7segment_display = {"A" : 2, "B" : 3, "C" : 4, "D" : 17, "E" : 27, "F" : 22, "G" : 10} 
 picture_basename = datetime.now().strftime("%Y-%m-%d_Photomaton")
 
 #####################
 ### Configuration ###
 #####################
-wiringpi.wiringPiSetup() # use wiringpi numerotation
+wiringpi.wiringPiSetupGpio() # use wiringpi numerotation
 
 ###############
 ### Classes ###
@@ -53,7 +54,7 @@ class ReflexCam(Camera):
 class Lamp:
     """ Eclairage Photobooth """
     def __init__(channel):
-        """ Initialisation """
+        """ Initialization """
         self.channel = channel
         wiringpi.pinMode(channel,2)
         wiringpi.pwmSetMode(channel,0)
@@ -65,12 +66,30 @@ class Lamp:
 
 class CountDisplay:
     """ 7 segment display """
+    
+    def __init__(channels):
+        """ Initialization of the 7 segment display """
+        self.channels = channels
+        # Pins configuration "
+        for char in "ABCDEFG":
+            wiringpi.pinMode(self.channels[char],1)
+            wiringpi.digitalWrite(self.channels[char],1)
+
+    def display(number):
+        """ Display the requested number """
+        wiringpi.digitalWrite(self.channels['A'], not number in [0,2,3,5,6,7,8,9])
+        wiringpi.digitalWrite(self.channels['B'], not number in [0,1,2,3,4,7,8,9])
+        wiringpi.digitalWrite(self.channels['C'], not number in [0,1,3,4,5,6,7,8,9])
+        wiringpi.digitalWrite(self.channels['D'], not number in [0,2,3,5,6,8,9])
+        wiringpi.digitalWrite(self.channels['E'], not number in [0,2,6,8])
+        wiringpi.digitalWrite(self.channels['F'], not number in [0,4,5,6,8,9])
+        wiringpi.digitalWrite(self.channels['G'], not number in [2,3,4,5,6,8,9])
 
 class Photobooth:
     """ Photobooth """
     
     def __init__(self,picture_basename,picture_size,trigger_channel, shutdown_channel, lamp_channel):
-        """ Initialisation """
+        """ Initialization """
         # Initialize the parameters
         self.trigger_channel = trigger_channel
         self.shutdown_channel = shutdown_channel
@@ -88,9 +107,12 @@ class Photobooth:
         wiringpi.wiringPISR(trigger_shutdown,2,quit)
         
 
+    def takePicture():
+        """ Launch the photo sequence """
+        #TODO : penser à bloquer le 2nd appel si 2 clics sur le bouton
+
     def quit(self):
         self.lamp.level(0)
-        # GPIO.cleanup()
 
 # Constante
 versionCamera = 1 # 1 ou 2 en fonction de la version de la pi camera utilisée

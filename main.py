@@ -15,7 +15,8 @@ gpio_shutdown_channel = 24
 gpio_7segments_display = {"A" : 2, "B" : 3, "C" : 4, "D" : 17, "E" : 27, "F" : 22, "G" : 5} 
 gpio_shutdown_led = 12 
 gpio_trigger_led = 25
-picture_basename = datetime.now().strftime("%Y-%m-%d_Photomaton")
+picture_path = datetime.now().strftime("%Y-%m-%d_Photomaton")
+picture_basename = datetime.now().strftime("%H-%M-%S_Photomaton.jpeg")
 typeCamera = 1 # 1 for raspberry pi camera, 2 for a reflex camera
 versionCamera = 1 # 1 or 2 depending of the camera version
 

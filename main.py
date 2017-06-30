@@ -41,29 +41,35 @@ class Raspicam(Camera):
     """ Camera Raspberry """
 
     def __init__(self):
+        """ Initialization of the camera """
         self.camera = PiCamera()
         # Configuration
         if versionCamera==1:
             camera.resolution = (1024, 768)
         elif versionCamera==2:
             camera.resolution = (3280,2464)
+        # Camera warm-up
+        camera.start_preview()
+        sleep(2)
     
     def prepareCamera(self):
         """ Camera preparation """
-        # Camera warm-up
-        camera.start_preview()
 
-    def takeAPicture(self,path):
+    def takeAPicture(self,picture_path,picture_basename):
         """ Take a picture with the camera """
-        camera.capture(path + "/" + datetime.now().strftime("Photomaton_%H-%M"))
-        camera.stop_preview()
+        camera.capture(picture_path + "/" + datetime.now().strftime(picture_basename))
 
     def close():
+        camera.stop_preview()
         """ Free the camera ressources to avoid GPU memory leaks """
         camera.close()
 
 class ReflexCam(Camera):
     """ REFLEX Camera """
+
+    def __init__(self):
+        """ Initialization of the camera """
+
     def prepareCamera(self):
         """ Prepare the camera for the picture """
 
@@ -80,8 +86,11 @@ class Lamp:
         self.channel = channel
         wiringpi.pinMode(channel,2)
         wiringpi.pwmSetMode(channel,0)
-        wiringpi.pwmWrite(0.1*1024)
     
+    def idle():
+        """ Set the lights to idle level """
+        wiringpi.pwmWrite(0.1*1024)
+
     def setLevel(level):
         """ Lighting coefficient modification between 0 and 1 """
         wiringpi.pwmWrite(self.channel,level*1024)    
@@ -107,25 +116,33 @@ class CountDisplay:
         wiringpi.digitalWrite(self.channels['F'], not number in [0,4,5,6,8,9])
         wiringpi.digitalWrite(self.channels['G'], not number in [2,3,4,5,6,8,9])
 
-    def switch_off():
+    def switchOff():
         for char in "ABCDEF":
             wiringpi.digitalWrite(self.channels[char],1) # swith off the segment
 
 class Photobooth:
     """ Photobooth """
     
-    def __init__(self,picture_basename,picture_size,trigger_channel, trigger_led_channel, seven_segments_channels, shutdown_channel, shutdown_led_channel, lamp_channel):
+    def __init__(self,picture_path,picture_basename,picture_size,trigger_channel, trigger_led_channel, seven_segments_channels, shutdown_channel, shutdown_led_channel, lamp_channel):
         """ Initialization """
         # Initialize the parameters
+        self.picture_path = picture_path
+        self.picture_basename = picture_basename
+        self.picture_size = picture_size
         self.trigger_channel = trigger_channel
         self.shutdown_channel = shutdown_channel
         self.trigger_led_channel = trigger_led_channel
         self.shutdown_led_channel = shutdown_led_channel
 
         # Create the objects
-        self.camera = 0000 #TODO
+        self.camera = Raspicam()
         self.countDisplay = CountDisplay(seven_segments_channels)
         self.lamp = Lamp(lamp_channel)
+
+        # Switch on the lights
+        self.lamp.idle()
+        wiringpi.digitalWrite(self.trigger_led_channel,1)
+        wiringpi.digitalWrite(self.shutdown_led_channel,1)
 
         # Events detection
         wiringpi.pinMode(trigger_channel,0)
@@ -140,14 +157,27 @@ class Photobooth:
 
     def takePicture():
         """ Launch the photo sequence """
-        self.takingPicture = True
-        #TODO 
-        self.takingPicture = False
+        if self.takingPicture == False:
+            self.takingPicture = True
+            wiringpi.digitalWrite(self.shutdown_led_channel,0)
+            self.camera.preparation()
+            for i in xrange(5,0,-1):
+                self.lamp.setLevel((5-i)/5) # Progressive increase of the lights
+                self.countDisplay.display(i) # Countdown update
+                if i != 0:
+                    sleep(1)
+            # Take a picture    
+            self.camera.takePicture(self.picture_path,self.picture_basename)
+            sleep(1) #TODO : to adjust
+            self.lamp.idle()
+            self.countDisplay.switchOff()
+            wiringpi.digitalWrite(self.shutdown_led_channel,1)
+            self.takingPicture = False
 
     def quit(self):
         self.camera.close()
         self.lamp.level(0)
-        self.countDisplay.switch_off()
+        self.countDisplay.switchOff()
         wiringpi.digitalWrite(self.trigger_led_channel,0)
         wiringpi.digitalWrite(self.shutdown_led_channel,0)
         sys.exit()
@@ -156,9 +186,4 @@ class Photobooth:
 
 
 
-# Eclairage en attente
-# While true
-    # Compte à rebourd
-    # Eclairage plus puissant
-    # Prise de la photo
 

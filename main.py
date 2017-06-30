@@ -13,8 +13,8 @@ gpio_lamp_channel = 18
 gpio_trigger_channel = 23
 gpio_shutdown_channel = 24
 gpio_7segments_display = {"A" : 2, "B" : 3, "C" : 4, "D" : 17, "E" : 27, "F" : 22, "G" : 5} 
-gpio_shutdown_led = 12 
-gpio_trigger_led = 25
+gpio_shutdown_led_channel = 12 
+gpio_trigger_led_channel = 25
 picture_path = datetime.now().strftime("%Y-%m-%d_Photomaton")
 picture_basename = datetime.now().strftime("%H-%M-%S_Photomaton.jpeg")
 typeCamera = 1 # 1 for raspberry pi camera, 2 for a reflex camera
@@ -184,7 +184,9 @@ class Photobooth:
         sys.exit()
 
 
-
+Photobooth(picture_path,picture_basename,picture_size,gpio_trigger_channel,gpio_trigger_led_channel,gpio_7segments_display,gpio_shutdown_channel,gpio_shutdown_led_channel,gpio_lamp_channel)
+while True:
+    sleep(10)
 
 
 

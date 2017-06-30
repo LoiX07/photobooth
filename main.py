@@ -1,6 +1,7 @@
 # Imports
 import exceptions
 import wiringpi2 as wiringpi
+import sys
 from time import sleep
 from picamera import PiCamera
 
@@ -11,8 +12,12 @@ from picamera import PiCamera
 gpio_lamp_channel = 18
 gpio_trigger_channel = 23
 gpio_shutdown_channel = 24
-gpio_7segment_display = {"A" : 2, "B" : 3, "C" : 4, "D" : 17, "E" : 27, "F" : 22, "G" : 10} 
+gpio_7segments_display = {"A" : 2, "B" : 3, "C" : 4, "D" : 17, "E" : 27, "F" : 22, "G" : 5} 
+gpio_shutdown_led = 12 
+gpio_trigger_led = 25
 picture_basename = datetime.now().strftime("%Y-%m-%d_Photomaton")
+typeCamera = 1 # 1 for raspberry pi camera, 2 for a reflex camera
+versionCamera = 1 # 1 or 2 depending of the camera version
 
 #####################
 ### Configuration ###
@@ -26,7 +31,7 @@ class Camera:
     """ Objet camera """
     
     def prepareCamera(self):
-        """ Préparation de la camera pour la photo"""
+        """ Camera initialization """
         raise NotImplemented
 
     def takeAPicture(self,path):
@@ -34,14 +39,28 @@ class Camera:
 
 class Raspicam(Camera):
     """ Camera Raspberry """
-    def prepareCamera(self):
-        """ Camera preparation """
 
     def __init__(self):
         self.camera = PiCamera()
+        # Configuration
+        if versionCamera==1:
+            camera.resolution = (1024, 768)
+        elif versionCamera==2:
+            camera.resolution = (3280,2464)
+    
+    def prepareCamera(self):
+        """ Camera preparation """
+        # Camera warm-up
+        camera.start_preview()
 
     def takeAPicture(self,path):
         """ Take a picture with the camera """
+        camera.capture(path + "/" + datetime.now().strftime("Photomaton_%H-%M"))
+        camera.stop_preview()
+
+    def close():
+        """ Free the camera ressources to avoid GPU memory leaks """
+        camera.close()
 
 class ReflexCam(Camera):
     """ REFLEX Camera """
@@ -51,8 +70,11 @@ class ReflexCam(Camera):
     def takeAPicture(self,path):
         """ Take a picture with the camera """
 
+    def close():
+        """ Free the camera ressources to avoid GPU memory leaks """
+
 class Lamp:
-    """ Eclairage Photobooth """
+    """ Lighting for the Photobooth """
     def __init__(channel):
         """ Initialization """
         self.channel = channel
@@ -61,7 +83,7 @@ class Lamp:
         wiringpi.pwmWrite(0.1*1024)
     
     def setLevel(level):
-        """ Modification du coefficient de l'éclairage, entre 0 et 1 """
+        """ Lighting coefficient modification between 0 and 1 """
         wiringpi.pwmWrite(self.channel,level*1024)    
 
 class CountDisplay:
@@ -85,51 +107,54 @@ class CountDisplay:
         wiringpi.digitalWrite(self.channels['F'], not number in [0,4,5,6,8,9])
         wiringpi.digitalWrite(self.channels['G'], not number in [2,3,4,5,6,8,9])
 
+    def switch_off():
+        for char in "ABCDEF":
+            wiringpi.digitalWrite(self.channels[char],1) # swith off the segment
+
 class Photobooth:
     """ Photobooth """
     
-    def __init__(self,picture_basename,picture_size,trigger_channel, shutdown_channel, lamp_channel):
+    def __init__(self,picture_basename,picture_size,trigger_channel, trigger_led_channel, seven_segments_channels, shutdown_channel, shutdown_led_channel, lamp_channel):
         """ Initialization """
         # Initialize the parameters
         self.trigger_channel = trigger_channel
         self.shutdown_channel = shutdown_channel
-        
+        self.trigger_led_channel = trigger_led_channel
+        self.shutdown_led_channel = shutdown_led_channel
+
         # Create the objects
-        self.camera = 0000
-        self.countDisplay = CountDisplay()
+        self.camera = 0000 #TODO
+        self.countDisplay = CountDisplay(seven_segments_channels)
         self.lamp = Lamp(lamp_channel)
-        # Détection d'évènements
+
+        # Events detection
         wiringpi.pinMode(trigger_channel,0)
         wiringpi.pullUpDnControl(trigger_channel,1)
-        wiringpi.wiringPISR(trigger_channel,2,takePicture)
+        wiringpi.wiringPiISR(trigger_channel,2,takePicture)
         wiringpi.pinMode(shutdown_channel,0)
         wiringpi.pullUpDnControl(shutdown_channel,1)
-        wiringpi.wiringPISR(trigger_shutdown,2,quit)
-        
+        wiringpi.wiringPiISR(trigger_shutdown,2,quit)
+
+        # semaphore on picture taking (to ignore a second clic during a taking picture sequence)
+        self.takingPicture = False
 
     def takePicture():
         """ Launch the photo sequence """
-        #TODO : penser à bloquer le 2nd appel si 2 clics sur le bouton
+        self.takingPicture = True
+        #TODO 
+        self.takingPicture = False
 
     def quit(self):
+        self.camera.close()
         self.lamp.level(0)
+        self.countDisplay.switch_off()
+        wiringpi.digitalWrite(self.trigger_led_channel,0)
+        wiringpi.digitalWrite(self.shutdown_led_channel,0)
+        sys.exit()
 
-# Constante
-versionCamera = 1 # 1 ou 2 en fonction de la version de la pi camera utilisée
 
 
-# Configuration
-if versionCamera==1:
-    camera.resolution = (1024, 768)
-elif versionCamera==2:
-    camera.resolution = (3280,2464)
 
-# Exception pour quitter la boucle
-
-camera.start_preview()
-# Camera warm-up time
-sleep(2)
-camera.capture('foo.jpg')
 
 # Eclairage en attente
 # While true

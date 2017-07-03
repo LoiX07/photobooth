@@ -66,7 +66,7 @@ class GUI_Display:
         self.clear()
         self.apply()
 
-    def clear(self, color=(0,0,0)):
+    def clear(self, color=(46,52,54)):
         self.screen.fill(color)
         self.surface_list = []
 
@@ -312,7 +312,10 @@ class Slideshow:
 
     def monitorEvents(self):
         """ Monitoring of the Slideshow events """
-        # TODO
+        while True:
+            for event in pygame.event.get():
+                self.handle_event(event)
+            sleep(0.1)
 
     def run(self):
         while True:
@@ -320,10 +323,16 @@ class Slideshow:
             while self.time_before_next > 0:
                 sleep(self.step)
                 self.time_before_next -= self.step
-            r, e = self.display.check_for_event()
-            if r:
-                self.handle_event(e)
+            self.display_next()
 
     def teardown(self):
         self.display.teardown()
         exit(0)
+def main():
+    # Start the slideshow
+    slideshow = Slideshow(display_size, display_time, slideshow_directory, True)
+    slideshow.run()
+
+    return 0
+if __name__ == "__main__":
+    exit(main())

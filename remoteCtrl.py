@@ -249,3 +249,81 @@ class GUI_Display:
 
     def teardown(self):
         pygame.quit()
+        
+class Slideshow:
+    def __init__(self, display_size, display_time, directory, recursive = True):
+        self.directory    = directory
+        self.recursive    = recursive
+        self.filelist     = []
+        self.display      = GuiModule("Slideshow", display_size)
+        self.display_time = display_time
+        self.next         = 0
+        self.time_before_next = display_time
+
+    def scan(self):
+        filelist = []
+
+        if self.recursive:
+            # Recursively walk all entries in the directory
+            for root, dirnames, filenames in os.walk(self.directory, followlinks=True):
+                for filename in filenames:
+                    filelist.append(os.path.join(root, filename))
+        else:
+            # Add all entries in the directory
+            for item in os.listdir(self.directory):
+                filename = os.path.join(self.directory, item)
+                if os.path.isfile(filename):
+                    filelist.append(filename)
+
+        self.filelist = filelist
+        self.next = 0
+
+    def handle_event(self, event):
+        """ Events handling of the slideshow """
+        if (event.type is pygame.MOUSEBUTTONUP):
+            pos = pygame.mouse.get_pos()
+            self.andle_touch(pos)
+        else:
+            pass
+
+    def handle_touch(self, pos):
+        """ Handle a touch on the screen """
+        # TODO
+
+    def display_next(self, text=""):
+        if self.next >= len(self.filelist):
+            self.scan()
+        if not self.filelist:
+            self.display.clear()
+            if text:
+                self.display.show_message(text)
+            else:
+                self.display.show_message("No pictures available!")
+            self.display.apply()
+        else:
+            filename = self.filelist[self.next]
+            self.next += 1
+            self.display.clear()
+            self.display.show_picture(filename)
+            if text:
+                self.display.show_message(text)
+            self.display.apply()
+            self.time_before_next = self.display_time
+
+    def monitorEvents(self):
+        """ Monitoring of the Slideshow events """
+        # TODO
+
+    def run(self):
+        while True:
+            self.display_next()
+            while self.time_before_next > 0:
+                sleep(self.step)
+                self.time_before_next -= self.step
+            r, e = self.display.check_for_event()
+            if r:
+                self.handle_event(e)
+
+    def teardown(self):
+        self.display.teardown()
+        exit(0)

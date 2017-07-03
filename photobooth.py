@@ -184,9 +184,11 @@ class Photobooth:
         sys.exit()
 
 
-Photobooth(picture_path,picture_basename,picture_size,gpio_trigger_channel,gpio_trigger_led_channel,gpio_7segments_display,gpio_shutdown_channel,gpio_shutdown_led_channel,gpio_lamp_channel)
-while True:
-    sleep(10)
+def main():
+    Photobooth(picture_path,picture_basename,picture_size,gpio_trigger_channel,gpio_trigger_led_channel,gpio_7segments_display,gpio_shutdown_channel,gpio_shutdown_led_channel,gpio_lamp_channel)
+    while True:
+        sleep(10)
 
-
+if __name__ == "__main__":
+    exit(main())
 

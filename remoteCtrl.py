@@ -1,13 +1,18 @@
 import os
+import threading
 import sys
 import pygame
 from time import sleep,clock
+from datetime import datetime
 
 ##################
 ### Parameters ###
 ##################
 picture_path = datetime.now().strftime("%Y-%m-%d_Photomaton")
 picture_suffix = "_Photomaton.jpeg"
+slideshow_directory = "test/" + picture_path
+display_size = (1240,1080)
+display_time = 1
 
 #####################
 ### Configuration ###
@@ -45,7 +50,7 @@ class PictureList:
         """ Get the sorted list of picture """
         return self.pictures
 
-class GUI_Display:
+class GUIModule:
     """ GUI Display using PyGame """
 
     def __init__(self,name,size):
@@ -60,7 +65,7 @@ class GUI_Display:
 
         # Store screen and size
         self.size = size
-        self.screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
+        self.screen = pygame.display.set_mode(size)#TODO, pygame.FULLSCREEN)
 
         # Clear screen
         self.clear()
@@ -235,30 +240,25 @@ class GUI_Display:
         # Return the rendered surface
         return surface
 
-    def wait_for_event(self):
-        # Repeat until a relevant event happened
-        while True:
-            # Discard all input that happened before entering the loop
-            pygame.event.get()
-
-            # Wait for event
-            event = pygame.event.wait()
-
-            # Return the event 
-            return event
-
     def teardown(self):
         pygame.quit()
         
 class Slideshow:
+    """ Slideshow : displays pictures in a folder and when a new picture is taken, displays it during a few time and let user choose if he wants to delete it """
+    
     def __init__(self, display_size, display_time, directory, recursive = True):
         self.directory    = directory
         self.recursive    = recursive
         self.filelist     = []
-        self.display      = GuiModule("Slideshow", display_size)
+        self.display      = GUIModule("Slideshow", display_size)
         self.display_time = display_time
         self.next         = 0
         self.time_before_next = display_time
+        self.scrolling = True
+        self.quitting = False
+        self.step = 0.1
+        self.monitoringThread = threading.Thread(target=self.monitorEvents)
+        self.monitoringThread.start() # Run
 
     def scan(self):
         filelist = []
@@ -278,17 +278,6 @@ class Slideshow:
         self.filelist = filelist
         self.next = 0
 
-    def handle_event(self, event):
-        """ Events handling of the slideshow """
-        if (event.type is pygame.MOUSEBUTTONUP):
-            pos = pygame.mouse.get_pos()
-            self.andle_touch(pos)
-        else:
-            pass
-
-    def handle_touch(self, pos):
-        """ Handle a touch on the screen """
-        # TODO
 
     def display_next(self, text=""):
         if self.next >= len(self.filelist):
@@ -311,28 +300,69 @@ class Slideshow:
             self.time_before_next = self.display_time
 
     def monitorEvents(self):
-        """ Monitoring of the Slideshow events """
-        while True:
-            for event in pygame.event.get():
-                self.handle_event(event)
-            sleep(0.1)
+        """ Monitor the Slideshow events """
+        while not self.quitting:
+            self.handle_event(pygame.event.wait())
 
     def run(self):
-        while True:
+        while not self.quitting :
             self.display_next()
-            while self.time_before_next > 0:
+            while self.time_before_next > 0 and self.scrolling:
                 sleep(self.step)
                 self.time_before_next -= self.step
             self.display_next()
 
+    def handle_event(self, event):
+        """ Handle events of the GUI"""
+        if event.type == pygame.MOUSEBUTTONUP:
+            pos = pygame.mouse.get_pos()
+            self.handle_clic(pos)
+        elif event.type == pygame.KEYDOWN:
+            self.handle_key_pressed(event.key)
+
+    def get_size(self):
+        return self.size
+
+    def handle_key_pressed(self,key):
+        """ Handle a pressed key """
+        print(key)
+        if key == pygame.constants.K_q:
+            self.teardown()
+
+    def handle_clic(self, pos):
+        """ Handle a clic or a touch on the screen """
+        # TODO
+
     def teardown(self):
         self.display.teardown()
-        exit(0)
+        self.quitting = True
+
+#################
+### Functions ###
+#################
+
+def sync_folders(source_directory, target_directory, wait_time):
+    sleep(5)
+    while True:
+        print("[" + datetime.now().strftime("%H:%M:%S") + "] Sync " 
+                + source_directory + " --> " + target_directory)
+        try:
+            cmd = "rsync -rtu " + source_directory + " " + target_directory
+            output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            print("ERROR executing '" + e.cmd + "':\n" + e.output)
+        sleep(wait_time)
+
 def main():
+    # Start a thread for syncing files
+    #if len(source_directory) > 0:
+    #   thread.start_new_thread(sync_folders, (source_directory, slideshow_directory, sync_time) )
+    
     # Start the slideshow
     slideshow = Slideshow(display_size, display_time, slideshow_directory, True)
     slideshow.run()
 
     return 0
+
 if __name__ == "__main__":
     exit(main())

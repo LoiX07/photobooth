@@ -10,9 +10,9 @@ from datetime import datetime
 ##################
 picture_path = datetime.now().strftime("%Y-%m-%d_Photomaton")
 picture_suffix = "_Photomaton.jpeg"
-slideshow_directory = "test/" + picture_path
-display_size = (1240,1080)
-display_time = 1
+slideshow_directory = "test/" #TODO 
+display_size = (1920,1080) #(800,480)
+display_time = 1 #TODO 5
 
 #####################
 ### Configuration ###
@@ -65,7 +65,7 @@ class GUIModule:
 
         # Store screen and size
         self.size = size
-        self.screen = pygame.display.set_mode(size)#TODO, pygame.FULLSCREEN)
+        self.screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
 
         # Clear screen
         self.clear()
@@ -82,9 +82,6 @@ class GUIModule:
 
     def get_size(self):
         return self.size
-
-    def trigger_event(self, event_channel):
-        pygame.event.post(pygame.event.Event(pygame.USEREVENT, channel=event_channel))
 
     def show_picture(self, filename, size=(0,0), offset=(0,0), flip=False):
         # Use window size if none given
@@ -262,7 +259,6 @@ class Slideshow:
 
     def scan(self):
         filelist = []
-
         if self.recursive:
             # Recursively walk all entries in the directory
             for root, dirnames, filenames in os.walk(self.directory, followlinks=True):
@@ -307,10 +303,9 @@ class Slideshow:
     def run(self):
         while not self.quitting :
             self.display_next()
-            while self.time_before_next > 0 and self.scrolling:
+            while self.time_before_next > 0 and self.scrolling and not self.quitting:
                 sleep(self.step)
                 self.time_before_next -= self.step
-            self.display_next()
 
     def handle_event(self, event):
         """ Handle events of the GUI"""
@@ -325,7 +320,6 @@ class Slideshow:
 
     def handle_key_pressed(self,key):
         """ Handle a pressed key """
-        print(key)
         if key == pygame.constants.K_q:
             self.teardown()
 
@@ -334,8 +328,8 @@ class Slideshow:
         # TODO
 
     def teardown(self):
-        self.display.teardown()
         self.quitting = True
+        self.display.teardown()
 
 #################
 ### Functions ###

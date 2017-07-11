@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Imports
 import exceptions
 import wiringpi2 as wiringpi

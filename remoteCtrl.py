@@ -7,15 +7,13 @@ import sys
 import pygame
 from time import sleep, clock
 from datetime import datetime
+import argparse
 
 ##################
 ### Parameters ###
 ##################
 picture_path = datetime.now().strftime("%Y-%m-%d_Photomaton")
 picture_suffix = "_Photomaton.jpeg"
-slideshow_directory = "test/"  #TODO
-display_size = (1920, 1080)  #(800,480)
-display_time = 1  #TODO 5
 
 #####################
 ### Configuration ###
@@ -375,7 +373,27 @@ def sync_folders(source_directory, target_directory, wait_time):
         sleep(wait_time)
 
 
+def parse_args():
+    """ Helper function that parses the command-line arguments """
+    parser = argparse.ArgumentParser(
+        description='Remote control for the photobooth')
+    parser.add_argument(
+        '--path', type=str, help='path to the pictures', required=True)
+    parser.add_argument(
+        '--size', type=int, nargs=2, help='size of the display', required=True)
+    parser.add_argument(
+        '--time', type=int, help='slideshow frequency', required=True)
+    args = parser.parse_args()
+    return args
+
+
 def main():
+    # Parse the args
+    args = parse_args()
+    display_size = tuple(args.size)
+    display_time = args.time
+    slideshow_directory = args.path
+
     # Start a thread for syncing files
     #if len(source_directory) > 0:
     #   thread.start_new_thread(sync_folders, (source_directory, slideshow_directory, sync_time) )

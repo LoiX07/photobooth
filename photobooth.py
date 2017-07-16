@@ -4,9 +4,10 @@
 """Picture taking module"""
 
 # Imports
-import exceptions
 import wiringpi2 as wiringpi
+import gphoto2 as gp
 import sys
+import logging
 from time import sleep
 from picamera import PiCamera
 
@@ -86,6 +87,10 @@ class ReflexCam(Camera):
 
     def __init__(self):
         """ Initialization of the camera """
+        gp.check_result(gp.use_python_logging())
+        context = gp.gp_context_new()
+        camera = gp.check_result(gp.gp_camera_new())
+        gp.check_result(gp.gp_camera_init(camera, context))
 
     def prepareCamera(self):
         """ Prepare the camera for the picture """
@@ -215,6 +220,9 @@ class Photobooth:
 
 
 def main():
+    logging.basicConfig(
+            format='%(levelname)s: %(name)s: %(message)s', level=logging.WARNING)
+
     Photobooth(picture_path, picture_basename, picture_size,
                gpio_trigger_channel, gpio_trigger_led_channel,
                gpio_7segments_display, gpio_shutdown_channel,

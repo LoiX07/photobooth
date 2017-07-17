@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Remote control module for the photobooth project
+"""
 
 import os
 import threading
-import sys
-import pygame
-from time import sleep, clock
+from time import sleep
 from datetime import datetime
+import subprocess
 import argparse
+from glob import glob
+import pygame
 
 ##################
 ### Parameters ###
 ##################
-picture_path = datetime.now().strftime("%Y-%m-%d_Photomaton")
-picture_suffix = "_Photomaton.jpeg"
+PICTURE_PATH = datetime.now().strftime("%Y-%m-%d_Photomaton")
+PICTURE_SUFFIX = "_Photomaton.jpeg"
 
 #####################
 ### Configuration ###
@@ -27,6 +31,10 @@ os.putenv('SDL_MOUSEDEV', '/dev/input/touchscreen')
 ### Classes ###
 ###############
 class PictureList:
+    """
+    Class used to construct a list of pictures
+    """
+
     def __init__(self, path, suffix):
         """Initialize filenames to the given basename and search for existing files.
         Set the counter accordingly"""
@@ -35,10 +43,11 @@ class PictureList:
         self.path = path
         self.suffix = suffix
         # Ensure directory exists
-        dirname = os.path.dirname(self.path)
+        if (not os.path.exists(self.path)) or (not os.path.isdir(self.path)):
+            raise Exception("Invalid path")
 
         # Find existing files
-        self.pictures = find_pictures()
+        self.pictures = self.find_pictures()
 
         # Sort picture
         self.pictures.sort()
@@ -50,6 +59,12 @@ class PictureList:
     def get_pictures_list(self):
         """ Get the sorted list of picture """
         return self.pictures
+
+
+class GuiException(Exception):
+    """
+    Custom exception class to handle GUI class errors
+    """
 
 
 class GUIModule:
@@ -74,27 +89,39 @@ class GUIModule:
         self.apply()
 
     def clear(self, color=(46, 52, 54)):
+        """
+        Clears the screen
+        """
         self.screen.fill(color)
         self.surface_list = []
 
     def apply(self):
+        """
+        Updates the display
+        """
         for surface in self.surface_list:
             self.screen.blit(surface[0], surface[1])
         pygame.display.update()
 
     def get_size(self):
+        """
+        Getter for the size of the display
+        """
         return self.size
 
     def show_picture(self, filename, size=(0, 0), offset=(0, 0), flip=False):
+        """
+        Display of a picture
+        """
         # Use window size if none given
         if size == (0, 0):
             size = self.size
         try:
             # Load image from file
             image = pygame.image.load(filename)
-        except pygame.error as e:
+        except pygame.error as exc:
             raise GuiException("ERROR: Can't open image '" + filename + "': " +
-                               e.message)
+                               exc.message)
         # Extract image size and determine scaling
         image_size = image.get_rect().size
         image_scale = min([min(a, b) / b for a, b in zip(size, image_size)])
@@ -115,7 +142,7 @@ class GUIModule:
     def show_message(self,
                      msg,
                      color=(0, 0, 0),
-                     bg=(230, 230, 230),
+                     background=(230, 230, 230),
                      transparency=True,
                      outline=(245, 245, 245)):
         # Choose font
@@ -123,7 +150,8 @@ class GUIModule:
         # Wrap and render text
         wrapped_text, text_height = self.wrap_text(msg, font, self.size)
         rendered_text = self.render_text(wrapped_text, text_height, 1, 1, font,
-                                         color, bg, transparency, outline)
+                                         color, background, transparency,
+                                         outline)
 
         self.surface_list.append((rendered_text, (0, 0)))
 
@@ -132,7 +160,7 @@ class GUIModule:
                     pos,
                     size=(0, 0),
                     color=(230, 230, 230),
-                    bg=(0, 0, 0),
+                    background=(0, 0, 0),
                     transparency=True,
                     outline=(230, 230, 230)):
         # Choose font
@@ -144,7 +172,7 @@ class GUIModule:
 
         # Create Surface object and fill it with the given background
         surface = pygame.Surface(self.size)
-        surface.fill(bg)
+        surface.fill(background)
 
         # Render text
         rendered_text = font.render(text, 1, color)
@@ -157,7 +185,7 @@ class GUIModule:
 
         # Make background color transparent
         if transparency:
-            surface.set_colorkey(bg)
+            surface.set_colorkey(background)
 
         self.surface_list.append((surface, (0, 0)))
 
@@ -211,8 +239,8 @@ class GUIModule:
 
         return final_lines, accumulated_height
 
-    def render_text(self, text, text_height, valign, halign, font, color, bg,
-                    transparency, outline):
+    def render_text(self, text, text_height, valign, halign, font, color,
+                    background, transparency, outline):
         # Determine vertical position
         if valign == 0:  # top aligned
             voffset = 0
@@ -225,7 +253,7 @@ class GUIModule:
 
         # Create Surface object and fill it with the given background
         surface = pygame.Surface(self.size)
-        surface.fill(bg)
+        surface.fill(background)
 
         # Blit one line after another
         accumulated_height = 0
@@ -239,6 +267,7 @@ class GUIModule:
             elif halign == 2:  # right aligned
                 hoffset = rect.width - maintext.get_width()
             else:
+                #TODO: where the f*ck does justification come from?
                 raise GuiException("Invalid halign argument: " +
                                    str(justification))
             pos = (hoffset, voffset + accumulated_height)
@@ -253,7 +282,7 @@ class GUIModule:
 
         # Make background color transparent
         if transparency:
-            surface.set_colorkey(bg)
+            surface.set_colorkey(background)
 
         # Return the rendered surface
         return surface
@@ -263,7 +292,9 @@ class GUIModule:
 
 
 class Slideshow:
-    """ Slideshow : displays pictures in a folder and when a new picture is taken, displays it during a few time and let user choose if he wants to delete it """
+    """ Slideshow : displays pictures in a folder and when a new picture is
+    taken, displays it during a few time and let user choose if he wants to
+    delete it """
 
     def __init__(self, display_size, display_time, directory, recursive=True):
         self.directory = directory
@@ -283,8 +314,7 @@ class Slideshow:
         filelist = []
         if self.recursive:
             # Recursively walk all entries in the directory
-            for root, dirnames, filenames in os.walk(
-                    self.directory, followlinks=True):
+            for root, filenames in os.walk(self.directory, followlinks=True):
                 for filename in filenames:
                     filelist.append(os.path.join(root, filename))
         else:
@@ -368,13 +398,15 @@ def sync_folders(source_directory, target_directory, wait_time):
             cmd = "rsync -rtu " + source_directory + " " + target_directory
             output = subprocess.check_output(
                 cmd, shell=True, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            print("ERROR executing '" + e.cmd + "':\n" + e.output)
+        except subprocess.CalledProcessError as exc:
+            print("ERROR executing '" + exc.cmd + "':\n" + exc.output)
         sleep(wait_time)
 
 
 def parse_args():
-    """ Helper function that parses the command-line arguments """
+    """
+    Helper function that parses the command-line arguments
+    """
     parser = argparse.ArgumentParser(
         description='Remote control for the photobooth')
     parser.add_argument(
@@ -388,6 +420,9 @@ def parse_args():
 
 
 def main():
+    """
+    Main function
+    """
     # Parse the args
     args = parse_args()
     display_size = tuple(args.size)

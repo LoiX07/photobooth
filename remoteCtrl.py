@@ -6,6 +6,7 @@ Remote control module for the photobooth project
 
 import os
 import threading
+from multiprocessing import Process, Queue
 from time import sleep
 from datetime import datetime
 import subprocess
@@ -296,7 +297,7 @@ class Slideshow:
     taken, displays it during a few time and let user choose if he wants to
     delete it """
 
-    def __init__(self, display_size, display_time, directory, recursive=True):
+    def __init__(self, display_size, display_time, directory, queue, recursive=True):
         self.directory = directory
         self.recursive = recursive
         self.filelist = []
@@ -307,8 +308,8 @@ class Slideshow:
         self.scrolling = True
         self.quitting = False
         self.step = 0.1
+        self._queue = queue
         self.monitoringThread = threading.Thread(target=self.monitorEvents)
-        self.monitoringThread.start()  # Run
 
     def scan(self):
         filelist = []
@@ -353,7 +354,12 @@ class Slideshow:
             self.handle_event(pygame.event.wait())
 
     def run(self):
+        # starts the monitoringThread
+        self.monitoringThread.start()
         while not self.quitting:
+            if not self._queue.empty():
+                self.display.show_message(self._queue.get(), transparency=False)
+                self.display.apply()
             self.display_next()
             while self.time_before_next > 0 and self.scrolling and not self.quitting:
                 sleep(self.step)
@@ -389,17 +395,10 @@ class Slideshow:
 #################
 
 
-def sync_folders(source_directory, target_directory, wait_time):
+def sync_loop(wait_time, queue):
     sleep(5)
     while True:
-        print("[" + datetime.now().strftime("%H:%M:%S") + "] Sync " +
-              source_directory + " --> " + target_directory)
-        try:
-            cmd = "rsync -rtu " + source_directory + " " + target_directory
-            output = subprocess.check_output(
-                cmd, shell=True, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as exc:
-            print("ERROR executing '" + exc.cmd + "':\n" + exc.output)
+        queue.put("test")
         sleep(wait_time)
 
 
@@ -433,15 +432,20 @@ def main():
     display_time = args.time
     slideshow_directory = args.path
 
+    q = Queue()
+
+    sync_process = Process(target = sync_loop, args=(5,q))
+    sync_process.start()
     # Start a thread for syncing files
     #if len(source_directory) > 0:
     #   thread.start_new_thread(sync_folders, (source_directory, slideshow_directory, sync_time) )
 
     # Start the slideshow
     slideshow = Slideshow(display_size, display_time, slideshow_directory,
-                          True)
+                          queue=q, recursive=True)
     slideshow.run()
 
+    sync_process.terminate()
     return 0
 
 

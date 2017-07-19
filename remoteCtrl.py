@@ -412,9 +412,13 @@ def parse_args():
     parser.add_argument(
         '--path', type=str, help='path to the pictures', required=True)
     parser.add_argument(
-        '--size', type=int, nargs=2, help='size of the display', required=True)
+        '--size',
+        type=int,
+        nargs=2,
+        help='size of the display',
+        default=(1920, 1080))
     parser.add_argument(
-        '--time', type=int, help='slideshow frequency', required=True)
+        '--time', type=int, help='slideshow frequency', default=1)
     args = parser.parse_args()
     return args
 

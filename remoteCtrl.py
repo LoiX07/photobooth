@@ -9,10 +9,11 @@ import threading
 from multiprocessing import Process, Queue
 from time import sleep
 from datetime import datetime
-import subprocess
 import argparse
+from socketserver import TCPServer
 import pygame
 from utils.gui import GUIModule
+from utils.tcp import PhotoServer
 
 ##################
 ### Parameters ###
@@ -36,25 +37,28 @@ class Slideshow:
     taken, displays it during a few time and let user choose if he wants to
     delete it """
 
-    def __init__(self, display_size, display_time, directory, queue, recursive=True):
-        self.directory = directory
-        self.recursive = recursive
+    def __init__(self, *args, **kwargs):
+        self.directory = kwargs.get('path')
+        self.recursive = kwargs.get('recursive')
         self.filelist = []
-        self.display = GUIModule("Slideshow", display_size)
-        self.display_time = display_time
+        self.display = GUIModule("Slideshow", kwargs.get('size'))
+        self.display_time = kwargs.get('time')
         self.next = 0
-        self.time_before_next = display_time
+        self.time_before_next = self.display_time
         self.scrolling = True
         self.quitting = False
         self.step = 0.1
+        self._queue = kwargs.get('queue')
         self._monitoring_thread = threading.Thread(target=self.monitorEvents)
         self._monitoring_thread.start()  # Run
 
     def scan(self):
+        """ Scan the photo dir in order to get a list of files """
         filelist = []
         if self.recursive:
             # Recursively walk all entries in the directory
-            for root, _, filenames in os.walk(self.directory, followlinks=True):
+            for root, _, filenames in os.walk(
+                    self.directory, followlinks=True):
                 for filename in filenames:
                     filelist.append(os.path.join(root, filename))
         else:
@@ -68,6 +72,7 @@ class Slideshow:
         self.next = 0
 
     def display_next(self, text=""):
+        """ Display the next file in the list """
         if self.next >= len(self.filelist):
             self.scan()
         if not self.filelist:
@@ -96,7 +101,8 @@ class Slideshow:
         """ Main loop """
         while not self.quitting:
             if not self._queue.empty():
-                self.display.show_message(self._queue.get(), transparency=False)
+                self.display.show_message(
+                    self._queue.get(), transparency=False)
                 self.display.apply()
             self.display_next()
             while self.time_before_next > 0 and self.scrolling and not self.quitting:
@@ -135,13 +141,6 @@ class Slideshow:
 #################
 
 
-def sync_loop(wait_time, queue):
-    sleep(5)
-    while True:
-        queue.put("test")
-        sleep(wait_time)
-
-
 def parse_args():
     """
     Helper function that parses the command-line arguments
@@ -157,6 +156,12 @@ def parse_args():
         help='size of the display',
         default=(1920, 1080))
     parser.add_argument(
+        '--port',
+        type=int,
+        nargs=1,
+        help='port on which to listen for incoming TCP connections',
+        default=5817)
+    parser.add_argument(
         '--time', type=int, help='slideshow frequency', default=1)
     args = parser.parse_args()
     return args
@@ -168,24 +173,26 @@ def main():
     """
     # Parse the args
     args = parse_args()
-    display_size = tuple(args.size)
-    display_time = args.time
-    slideshow_directory = args.path
 
-    q = Queue()
+    queue = Queue()
 
-    sync_process = Process(target = sync_loop, args=(5,q))
-    sync_process.start()
-    # Start a thread for syncing files
-    #if len(source_directory) > 0:
-    #   thread.start_new_thread(sync_folders, (source_directory, slideshow_directory, sync_time) )
+    # Init the TCP server
+    TCPServer.allow_reuse_address = True
+    server = PhotoServer(port=args.port, queue=queue)
+    server_process = Process(target=server.serve_forever)
+    server_process.daemon = True
+    server_process.start()
 
     # Start the slideshow
-    slideshow = Slideshow(display_size, display_time, slideshow_directory,
-                          queue=q, recursive=True)
+    slideshow = Slideshow(
+        size=tuple(args.size),
+        time=args.time,
+        path=args.path,
+        queue=queue,
+        recursive=True)
     slideshow.run()
 
-    sync_process.terminate()
+    server_process.terminate()
     return 0
 
 

@@ -16,7 +16,10 @@ class PhotoTCPHandler(BaseRequestHandler):
     def handle(self):
         # self.request is the TCP socket connected to the client
         self.data = self.request.recv(1024).strip()
-        self.server.put(self.data)
+        try:
+            self.server.put(self.data.decode(encoding="utf-8", errors="strict"))
+        except UnicodeError:
+            pass
 
 class PhotoServer(TCPServer):
     """ Class that represents our TCP server"""

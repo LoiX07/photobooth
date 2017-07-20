@@ -100,12 +100,15 @@ class Slideshow:
     def run(self):
         """ Main loop """
         while not self.quitting:
-            if not self._queue.empty():
-                self.display.show_message(
-                    self._queue.get(), transparency=False)
-                self.display.apply()
             self.display_next()
             while self.time_before_next > 0 and self.scrolling and not self.quitting:
+                # when a new messages arrive, we check whether it is a valid file
+                if not self._queue.empty():
+                    new_picture = os.path.join(self.directory, self._queue.get())
+                    if os.path.exists(new_picture):
+                        # if so, we add it at the end of the list
+                        self.filelist.append(new_picture)
+                        # TODO: and we launch the display of the new picture
                 sleep(self.step)
                 self.time_before_next -= self.step
 

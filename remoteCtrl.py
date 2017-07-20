@@ -162,6 +162,11 @@ def parse_args():
         help='port on which to listen for incoming TCP connections',
         default=5817)
     parser.add_argument(
+        '--address',
+        type=str,
+        help='address on which to bind the socket',
+        default='localhost')
+    parser.add_argument(
         '--time', type=int, help='slideshow frequency', default=1)
     args = parser.parse_args()
     return args
@@ -178,7 +183,7 @@ def main():
 
     # Init the TCP server
     TCPServer.allow_reuse_address = True
-    server = PhotoServer(port=args.port, queue=queue)
+    server = PhotoServer(address=args.address, port=args.port, queue=queue)
     server_process = Process(target=server.serve_forever)
     server_process.daemon = True
     server_process.start()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Server for picture synchronisations
+Server for picture synchronization
 """
 
 from socketserver import TCPServer, BaseRequestHandler
@@ -20,9 +20,9 @@ class PhotoTCPHandler(BaseRequestHandler):
 
 class PhotoServer(TCPServer):
     """ Class that represents our TCP server"""
-    def __init__(self, port, queue):
+    def __init__(self, address, port, queue):
         self._queue = queue
-        super(PhotoServer, self).__init__(("localhost", port), PhotoTCPHandler)
+        super(PhotoServer, self).__init__((address, port), PhotoTCPHandler)
 
     def put(self, data):
         """ Method used to put data into the queue """

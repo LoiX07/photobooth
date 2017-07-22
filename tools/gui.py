@@ -89,10 +89,11 @@ class GUIModule:
                      background=(230, 230, 230),
                      transparency=True,
                      outline=(245, 245, 245)):
+        """Pre-rendering of a message"""
         # Choose font
         font = pygame.font.Font(None, 144)
         # Wrap and render text
-        wrapped_text, text_height = self.wrap_text(msg, font, self.size)
+        wrapped_text, text_height = wrap_text(msg, font, self.size)
         rendered_text = self.render_text(wrapped_text, text_height, 1, 1, font,
                                          color, background, transparency,
                                          outline)
@@ -107,6 +108,7 @@ class GUIModule:
                     background=(0, 0, 0),
                     transparency=True,
                     outline=(230, 230, 230)):
+        """Pre-rendering of a button"""
         # Choose font
         font = pygame.font.Font(None, 72)
         text_size = font.size(text)
@@ -133,58 +135,10 @@ class GUIModule:
 
         self.surface_list.append((surface, (0, 0)))
 
-    def wrap_text(self, msg, font, size):
-        final_lines = []  # resulting wrapped text
-        requested_lines = msg.splitlines()  # wrap input along line breaks
-        accumulated_height = 0  # accumulated height
-
-        # Form a series of lines
-        for requested_line in requested_lines:
-            # Handle too long lines
-            if font.size(requested_line)[0] > size[0]:
-                # Split at white spaces
-                words = requested_line.split(' ')
-                # if any of our words are too long to fit, trim them
-                for word in words:
-                    while font.size(word)[0] >= size[0]:
-                        word = word[:-1]
-                # Start a new line
-                accumulated_line = ""
-                # Put words on the line as long as they fit
-                for word in words:
-                    test_line = accumulated_line + word + " "
-                    # Build the line while the words fit.
-                    if font.size(test_line)[0] < size[0]:
-                        accumulated_line = test_line
-                    else:
-                        # Start a new line
-                        line_height = font.size(accumulated_line)[1]
-                        if accumulated_height + line_height > size[1]:
-                            break
-                        else:
-                            accumulated_height += line_height
-                            final_lines.append(accumulated_line)
-                            accumulated_line = word + " "
-                # Finish requested_line
-                line_height = font.size(accumulated_line)[1]
-                if accumulated_height + line_height > size[1]:
-                    break
-                else:
-                    accumulated_height += line_height
-                    final_lines.append(accumulated_line)
-            # Line fits as it is
-            else:
-                accumulated_height += font.size(requested_line)[1]
-                final_lines.append(requested_line)
-
-        # Check height of wrapped text
-        if accumulated_height >= size[1]:
-            raise GuiException("Wrapped text is too high to fit.")
-
-        return final_lines, accumulated_height
 
     def render_text(self, text, text_height, valign, halign, font, color,
                     background, transparency, outline):
+        """Pre-rendering of some text"""
         # Determine vertical position
         if valign == 0:  # top aligned
             voffset = 0
@@ -232,4 +186,56 @@ class GUIModule:
         return surface
 
     def teardown(self):
+        """Exit function"""
         pygame.quit()
+
+def wrap_text(msg, font, size):
+    """Wrapping text around the screen"""
+    final_lines = []  # resulting wrapped text
+    requested_lines = msg.splitlines()  # wrap input along line breaks
+    accumulated_height = 0  # accumulated height
+
+    # Form a series of lines
+    for requested_line in requested_lines:
+        # Handle too long lines
+        if font.size(requested_line)[0] > size[0]:
+            # Split at white spaces
+            words = requested_line.split(' ')
+            # if any of our words are too long to fit, trim them
+            for word in words:
+                while font.size(word)[0] >= size[0]:
+                    word = word[:-1]
+            # Start a new line
+            accumulated_line = ""
+            # Put words on the line as long as they fit
+            for word in words:
+                test_line = accumulated_line + word + " "
+                # Build the line while the words fit.
+                if font.size(test_line)[0] < size[0]:
+                    accumulated_line = test_line
+                else:
+                    # Start a new line
+                    line_height = font.size(accumulated_line)[1]
+                    if accumulated_height + line_height > size[1]:
+                        break
+                    else:
+                        accumulated_height += line_height
+                        final_lines.append(accumulated_line)
+                        accumulated_line = word + " "
+            # Finish requested_line
+            line_height = font.size(accumulated_line)[1]
+            if accumulated_height + line_height > size[1]:
+                break
+            else:
+                accumulated_height += line_height
+                final_lines.append(accumulated_line)
+        # Line fits as it is
+        else:
+            accumulated_height += font.size(requested_line)[1]
+            final_lines.append(requested_line)
+
+    # Check height of wrapped text
+    if accumulated_height >= size[1]:
+        raise GuiException("Wrapped text is too high to fit.")
+
+    return final_lines, accumulated_height

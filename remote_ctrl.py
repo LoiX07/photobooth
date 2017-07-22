@@ -4,16 +4,18 @@
 Remote control module for the photobooth project
 """
 
+import argparse
 import os
 import threading
-from multiprocessing import Process, Queue
-from time import sleep
 from datetime import datetime
-import argparse
+from multiprocessing import Process, Queue
 from socketserver import TCPServer
+from time import sleep
+
 import pygame
-from utils.gui import GUIModule
-from utils.tcp import PhotoServer
+
+from tools.gui import GUIModule
+from tools.tcp import PhotoServer
 
 ##################
 ### Parameters ###
@@ -49,7 +51,7 @@ class Slideshow:
         self.quitting = False
         self.step = 0.1
         self._queue = kwargs.get('queue')
-        self._monitoring_thread = threading.Thread(target=self.monitorEvents)
+        self._monitoring_thread = threading.Thread(target=self._monitor_events)
         self._monitoring_thread.start()  # Run
 
     def scan(self):
@@ -92,7 +94,7 @@ class Slideshow:
             self.display.apply()
             self.time_before_next = self.display_time
 
-    def monitorEvents(self):
+    def _monitor_events(self):
         """ Monitor the Slideshow events """
         while not self.quitting:
             self.handle_event(pygame.event.wait())
@@ -102,7 +104,7 @@ class Slideshow:
         while not self.quitting:
             self.display_next()
             while self.time_before_next > 0 and self.scrolling and not self.quitting:
-                # when a new messages arrive, we check whether it is a valid file
+                # when a new messages arrives, we check whether it is a valid file
                 if not self._queue.empty():
                     new_picture = os.path.join(self.directory, self._queue.get())
                     if os.path.exists(new_picture):

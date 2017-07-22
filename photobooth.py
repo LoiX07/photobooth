@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""Picture taking module"""
+
 # Imports
 import exceptions
 import wiringpi2 as wiringpi

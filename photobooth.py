@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """Picture taking module"""
 
+from abc import ABCMeta, abstractmethod
+import logging
+from os.path import join
+import sys
+from datetime import datetime
+from time import sleep
+
+import gphoto2 as gp
 # Imports
 import wiringpi2 as wiringpi
-import gphoto2 as gp
-import sys
-import logging
-from time import sleep
+
 from picamera import PiCamera
 
 ##################
 ### Parameters ###
 ##################
-gpio_lamp_channel = 18
-gpio_trigger_channel = 23
-gpio_shutdown_channel = 24
-gpio_7segments_display = {
+GPIO_LAMP_CHANNEL = 18
+GPIO_TRIGGER_CHANNEL = 23
+GPIO_SHUTDOWN_CHANNEL = 24
+GPIO_7SEGMENTS_DISPLAY = {
     "A": 2,
     "B": 3,
     "C": 4,
@@ -26,12 +30,14 @@ gpio_7segments_display = {
     "F": 22,
     "G": 5
 }
-gpio_shutdown_led_channel = 12
-gpio_trigger_led_channel = 25
-picture_path = datetime.now().strftime("%Y-%m-%d_Photomaton")
-picture_basename = "%H-%M-%S_Photomaton.jpeg"
-typeCamera = 1  # 1 for raspberry pi camera, 2 for a reflex camera
-versionCamera = 1  # 1 or 2 depending of the camera version
+GPIO_SHUTDOWN_LED_CHANNEL = 12
+GPIO_TRIGGER_LED_CHANNEL = 25
+PICTURE_PATH = datetime.now().strftime("%Y-%m-%d_Photomaton")
+PICTURE_BASENAME = "%H-%M-%S_Photomaton.jpeg"
+#TODO: fill in the value
+PICTURE_SIZE = 0
+TYPE_CAMERA = 1  # 1 for raspberry pi camera, 2 for a reflex camera
+VERSION_CAMERA = 1  # 1 or 2 depending of the camera version
 
 #####################
 ### Configuration ###
@@ -42,15 +48,19 @@ wiringpi.wiringPiSetupGpio()  # use wiringpi numerotation
 ###############
 ### Classes ###
 ###############
-class Camera:
-    """ Objet camera """
+class Camera(object):
+    """ Metaclass for a camera (raspi or reflex) """
+    __metaclass__ = ABCMeta
 
-    def prepareCamera(self):
-        """ Camera initialization """
-        raise NotImplemented
+    @abstractmethod
+    def prepare_camera(self):
+        """ Abstract method for camera initialization """
+        pass
 
-    def takeAPicture(self, path):
-        raise NotImplemented
+    @abstractmethod
+    def take_picture(self, path, basename):
+        """ Abstract method for taking pictures"""
+        pass
 
 
 class Raspicam(Camera):
@@ -60,26 +70,26 @@ class Raspicam(Camera):
         """ Initialization of the camera """
         self.camera = PiCamera()
         # Configuration
-        if versionCamera == 1:
-            camera.resolution = (1024, 768)
-        elif versionCamera == 2:
-            camera.resolution = (3280, 2464)
+        if VERSION_CAMERA == 1:
+            self.camera.resolution = (1024, 768)
+        elif VERSION_CAMERA == 2:
+            self.camera.resolution = (3280, 2464)
         # Camera warm-up
-        camera.start_preview()
+        self.camera.start_preview()
         sleep(2)
 
-    def prepareCamera(self):
+    def prepare_camera(self):
         """ Camera preparation """
+        pass
 
-    def takeAPicture(self, picture_path, picture_basename):
+    def take_picture(self, path, basename):
         """ Take a picture with the camera """
-        camera.capture(picture_path + "/" +
-                       datetime.now().strftime(picture_basename))
+        self.camera.capture(join(path, datetime.now().strftime(basename)))
 
-    def close():
-        camera.stop_preview()
+    def close(self):
         """ Free the camera ressources to avoid GPU memory leaks """
-        camera.close()
+        self.camera.stop_preview()
+        self.camera.close()
 
 
 class ReflexCam(Camera):
@@ -89,41 +99,45 @@ class ReflexCam(Camera):
         """ Initialization of the camera """
         gp.check_result(gp.use_python_logging())
         context = gp.gp_context_new()
-        camera = gp.check_result(gp.gp_camera_new())
-        gp.check_result(gp.gp_camera_init(camera, context))
+        self.camera = gp.check_result(gp.gp_camera_new())
+        gp.check_result(gp.gp_camera_init(self.camera, context))
 
-    def prepareCamera(self):
+    def prepare_camera(self):
         """ Prepare the camera for the picture """
+        pass
 
-    def takeAPicture(self, path):
+    def take_picture(self, path, basename):
         """ Take a picture with the camera """
+        pass
 
-    def close():
+    def close(self):
         """ Free the camera ressources to avoid GPU memory leaks """
 
 
 class Lamp:
     """ Lighting for the Photobooth """
 
-    def __init__(channel):
+    def __init__(self, channel):
         """ Initialization """
         self.channel = channel
         wiringpi.pinMode(channel, 2)
         wiringpi.pwmSetMode(channel, 0)
 
-    def idle():
+    def idle(self):
         """ Set the lights to idle level """
+        #TODO: does it need to be a method?
         wiringpi.pwmWrite(0.1 * 1024)
 
-    def setLevel(level):
+    def set_level(self, level):
         """ Lighting coefficient modification between 0 and 1 """
+        #TODO: does it need to be a method?
         wiringpi.pwmWrite(self.channel, level * 1024)
 
 
 class CountDisplay:
     """ 7 segment display """
 
-    def __init__(channels):
+    def __init__(self, channels):
         """ Initialization of the 7 segment display """
         self.channels = channels
         # Pins configuration "
@@ -131,7 +145,7 @@ class CountDisplay:
             wiringpi.pinMode(self.channels[char], 1)
             wiringpi.digitalWrite(self.channels[char], 1)
 
-    def display(number):
+    def display(self, number):
         """ Display the requested number """
         wiringpi.digitalWrite(self.channels['A'],
                               not number in [0, 2, 3, 5, 6, 7, 8, 9])
@@ -147,7 +161,8 @@ class CountDisplay:
         wiringpi.digitalWrite(self.channels['G'],
                               not number in [2, 3, 4, 5, 6, 8, 9])
 
-    def switchOff():
+    def switch_off(self):
+        """ Shutdown of the display """
         for char in "ABCDEF":
             wiringpi.digitalWrite(self.channels[char],
                                   1)  # swith off the segment
@@ -171,7 +186,7 @@ class Photobooth:
 
         # Create the objects
         self.camera = Raspicam()
-        self.countDisplay = CountDisplay(seven_segments_channels)
+        self.count_display = CountDisplay(seven_segments_channels)
         self.lamp = Lamp(lamp_channel)
 
         # Switch on the lights
@@ -182,51 +197,56 @@ class Photobooth:
         # Events detection
         wiringpi.pinMode(trigger_channel, 0)
         wiringpi.pullUpDnControl(trigger_channel, 1)
-        wiringpi.wiringPiISR(trigger_channel, 2, takePicture)
+        wiringpi.wiringPiISR(trigger_channel, 2, self.take_picture)
         wiringpi.pinMode(shutdown_channel, 0)
         wiringpi.pullUpDnControl(shutdown_channel, 1)
-        wiringpi.wiringPiISR(trigger_shutdown, 2, quit)
+        #TODO: undefined variable trigger_shutdown?
+        wiringpi.wiringPiISR(trigger_shutdown, 2, self.quit)
 
         # semaphore on picture taking (to ignore a second clic during a taking picture sequence)
-        self.takingPicture = False
+        self.taking_picture = False
 
-    def takePicture():
+    def take_picture(self):
         """ Launch the photo sequence """
-        if self.takingPicture == False:
-            self.takingPicture = True
+        # equivalent: if self.taking_picture is False
+        if not self.taking_picture:
+            self.taking_picture = True
             wiringpi.digitalWrite(self.shutdown_led_channel, 0)
             self.camera.preparation()
-            for i in xrange(5, 0, -1):
-                self.lamp.setLevel(
+            # python3 range is python2 xrange
+            for i in range(5, 0, -1):
+                self.lamp.set_level(
                     (5 - i) / 5)  # Progressive increase of the lights
-                self.countDisplay.display(i)  # Countdown update
+                self.count_display.display(i)  # Countdown update
                 if i != 0:
                     sleep(1)
             # Take a picture
-            self.camera.takePicture(self.picture_path, self.picture_basename)
+            self.camera.take_picture(self.picture_path, self.picture_basename)
             sleep(1)  #TODO : to adjust
             self.lamp.idle()
-            self.countDisplay.switchOff()
+            self.count_display.switch_off()
             wiringpi.digitalWrite(self.shutdown_led_channel, 1)
-            self.takingPicture = False
+            self.taking_picture = False
 
     def quit(self):
+        """ Cleanup function """
         self.camera.close()
         self.lamp.level(0)
-        self.countDisplay.switchOff()
+        self.count_display.switch_off()
         wiringpi.digitalWrite(self.trigger_led_channel, 0)
         wiringpi.digitalWrite(self.shutdown_led_channel, 0)
         sys.exit()
 
 
 def main():
+    """ Main script """
     logging.basicConfig(
-            format='%(levelname)s: %(name)s: %(message)s', level=logging.WARNING)
+        format='%(levelname)s: %(name)s: %(message)s', level=logging.WARNING)
 
-    Photobooth(picture_path, picture_basename, picture_size,
-               gpio_trigger_channel, gpio_trigger_led_channel,
-               gpio_7segments_display, gpio_shutdown_channel,
-               gpio_shutdown_led_channel, gpio_lamp_channel)
+    Photobooth(PICTURE_PATH, PICTURE_BASENAME, PICTURE_SIZE,
+               GPIO_TRIGGER_CHANNEL, GPIO_TRIGGER_LED_CHANNEL,
+               GPIO_7SEGMENTS_DISPLAY, GPIO_SHUTDOWN_CHANNEL,
+               GPIO_SHUTDOWN_LED_CHANNEL, GPIO_LAMP_CHANNEL)
     while True:
         sleep(10)
 

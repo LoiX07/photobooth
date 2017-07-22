@@ -2,18 +2,13 @@
 # -*- coding: utf-8 -*-
 """Picture taking module"""
 
-from abc import ABCMeta, abstractmethod
 import logging
-from os.path import join
 import sys
 from datetime import datetime
 from time import sleep
 
-import gphoto2 as gp
-# Imports
 import wiringpi2 as wiringpi
-
-from picamera import PiCamera
+from hardware import CountDisplay, Lamp, RaspiCam
 
 ##################
 ### Parameters ###
@@ -48,126 +43,6 @@ wiringpi.wiringPiSetupGpio()  # use wiringpi numerotation
 ###############
 ### Classes ###
 ###############
-class Camera(object):
-    """ Metaclass for a camera (raspi or reflex) """
-    __metaclass__ = ABCMeta
-
-    @abstractmethod
-    def prepare_camera(self):
-        """ Abstract method for camera initialization """
-        pass
-
-    @abstractmethod
-    def take_picture(self, path, basename):
-        """ Abstract method for taking pictures"""
-        pass
-
-
-class Raspicam(Camera):
-    """ Camera Raspberry """
-
-    def __init__(self):
-        """ Initialization of the camera """
-        self.camera = PiCamera()
-        # Configuration
-        if VERSION_CAMERA == 1:
-            self.camera.resolution = (1024, 768)
-        elif VERSION_CAMERA == 2:
-            self.camera.resolution = (3280, 2464)
-        # Camera warm-up
-        self.camera.start_preview()
-        sleep(2)
-
-    def prepare_camera(self):
-        """ Camera preparation """
-        pass
-
-    def take_picture(self, path, basename):
-        """ Take a picture with the camera """
-        self.camera.capture(join(path, datetime.now().strftime(basename)))
-
-    def close(self):
-        """ Free the camera ressources to avoid GPU memory leaks """
-        self.camera.stop_preview()
-        self.camera.close()
-
-
-class ReflexCam(Camera):
-    """ REFLEX Camera """
-
-    def __init__(self):
-        """ Initialization of the camera """
-        gp.check_result(gp.use_python_logging())
-        context = gp.gp_context_new()
-        self.camera = gp.check_result(gp.gp_camera_new())
-        gp.check_result(gp.gp_camera_init(self.camera, context))
-
-    def prepare_camera(self):
-        """ Prepare the camera for the picture """
-        pass
-
-    def take_picture(self, path, basename):
-        """ Take a picture with the camera """
-        pass
-
-    def close(self):
-        """ Free the camera ressources to avoid GPU memory leaks """
-
-
-class Lamp:
-    """ Lighting for the Photobooth """
-
-    def __init__(self, channel):
-        """ Initialization """
-        self.channel = channel
-        wiringpi.pinMode(channel, 2)
-        wiringpi.pwmSetMode(channel, 0)
-
-    def idle(self):
-        """ Set the lights to idle level """
-        #TODO: does it need to be a method?
-        wiringpi.pwmWrite(0.1 * 1024)
-
-    def set_level(self, level):
-        """ Lighting coefficient modification between 0 and 1 """
-        #TODO: does it need to be a method?
-        wiringpi.pwmWrite(self.channel, level * 1024)
-
-
-class CountDisplay:
-    """ 7 segment display """
-
-    def __init__(self, channels):
-        """ Initialization of the 7 segment display """
-        self.channels = channels
-        # Pins configuration "
-        for char in "ABCDEFG":
-            wiringpi.pinMode(self.channels[char], 1)
-            wiringpi.digitalWrite(self.channels[char], 1)
-
-    def display(self, number):
-        """ Display the requested number """
-        wiringpi.digitalWrite(self.channels['A'],
-                              not number in [0, 2, 3, 5, 6, 7, 8, 9])
-        wiringpi.digitalWrite(self.channels['B'],
-                              not number in [0, 1, 2, 3, 4, 7, 8, 9])
-        wiringpi.digitalWrite(self.channels['C'],
-                              not number in [0, 1, 3, 4, 5, 6, 7, 8, 9])
-        wiringpi.digitalWrite(self.channels['D'],
-                              not number in [0, 2, 3, 5, 6, 8, 9])
-        wiringpi.digitalWrite(self.channels['E'], not number in [0, 2, 6, 8])
-        wiringpi.digitalWrite(self.channels['F'],
-                              not number in [0, 4, 5, 6, 8, 9])
-        wiringpi.digitalWrite(self.channels['G'],
-                              not number in [2, 3, 4, 5, 6, 8, 9])
-
-    def switch_off(self):
-        """ Shutdown of the display """
-        for char in "ABCDEF":
-            wiringpi.digitalWrite(self.channels[char],
-                                  1)  # swith off the segment
-
-
 class Photobooth:
     """ Photobooth """
 
@@ -185,7 +60,7 @@ class Photobooth:
         self.shutdown_led_channel = shutdown_led_channel
 
         # Create the objects
-        self.camera = Raspicam()
+        self.camera = RaspiCam(version=VERSION_CAMERA)
         self.count_display = CountDisplay(seven_segments_channels)
         self.lamp = Lamp(lamp_channel)
 
@@ -212,7 +87,7 @@ class Photobooth:
         if not self.taking_picture:
             self.taking_picture = True
             wiringpi.digitalWrite(self.shutdown_led_channel, 0)
-            self.camera.preparation()
+            self.camera.prepare_camera()
             # python3 range is python2 xrange
             for i in range(5, 0, -1):
                 self.lamp.set_level(
@@ -231,7 +106,7 @@ class Photobooth:
     def quit(self):
         """ Cleanup function """
         self.camera.close()
-        self.lamp.level(0)
+        self.lamp.set_level(0)
         self.count_display.switch_off()
         wiringpi.digitalWrite(self.trigger_led_channel, 0)
         wiringpi.digitalWrite(self.shutdown_led_channel, 0)

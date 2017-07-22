@@ -3,6 +3,7 @@
 """Picture taking module"""
 
 import logging
+import socket
 import sys
 from datetime import datetime
 from time import sleep
@@ -33,6 +34,8 @@ PICTURE_BASENAME = "%H-%M-%S_Photomaton.jpeg"
 PICTURE_SIZE = 0
 TYPE_CAMERA = 1  # 1 for raspberry pi camera, 2 for a reflex camera
 VERSION_CAMERA = 1  # 1 or 2 depending of the camera version
+
+HOST, PORT = "localhost", 5817
 
 #####################
 ### Configuration ###
@@ -96,7 +99,12 @@ class Photobooth:
                 if i != 0:
                     sleep(1)
             # Take a picture
-            self.camera.take_picture(self.picture_path, self.picture_basename)
+            new_name = self.camera.take_picture(self.picture_path, self.picture_basename)
+            # send the picture name through a TCP socket
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                # Connect to server and send data
+                sock.connect((HOST, PORT))
+                sock.sendall(bytes(new_name + "\n", "utf-8"))
             sleep(1)  #TODO : to adjust
             self.lamp.idle()
             self.count_display.switch_off()

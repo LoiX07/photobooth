@@ -10,6 +10,7 @@ from time import sleep
 
 import wiringpi2 as wiringpi
 from hardware import CountDisplay, Lamp, RaspiCam
+from tools.photo_log import PHOTO_LOG as log
 
 ##################
 ### Parameters ###
@@ -123,8 +124,17 @@ class Photobooth:
 
 def main():
     """ Main script """
-    logging.basicConfig(
-        format='%(levelname)s: %(name)s: %(message)s', level=logging.WARNING)
+    # set up the logging
+    console = logging.StreamHandler()
+
+    formatter = logging.Formatter('%(levelname)s: %(name)s: %(message)s')
+    console.setFormatter(formatter)
+    log.setFormatter(formatter)
+
+    log.setLevel(logging.WARNING)
+    console.setLevel(logging.WARNING)
+
+    log.addHandler(console)
 
     Photobooth(PICTURE_PATH, PICTURE_BASENAME, PICTURE_SIZE,
                GPIO_TRIGGER_CHANNEL, GPIO_TRIGGER_LED_CHANNEL,

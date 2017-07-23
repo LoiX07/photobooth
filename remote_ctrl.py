@@ -5,6 +5,7 @@ Remote control module for the photobooth project
 """
 
 import argparse
+import logging
 import os
 import threading
 from datetime import datetime
@@ -16,6 +17,7 @@ import pygame
 
 from tools.gui import GUIModule
 from tools.tcp import PhotoServer
+from tools.remote_log import REMOTE_LOG as log
 
 ##################
 ### Parameters ###
@@ -106,7 +108,8 @@ class Slideshow:
             while self.time_before_next > 0 and self.scrolling and not self.quitting:
                 # when a new messages arrives, we check whether it is a valid file
                 if not self._queue.empty():
-                    new_picture = os.path.join(self.directory, self._queue.get())
+                    new_picture = os.path.join(self.directory,
+                                               self._queue.get())
                     if os.path.exists(new_picture):
                         # if so, we add it at the end of the list
                         self.filelist.append(new_picture)
@@ -173,6 +176,11 @@ def parse_args():
         default='localhost')
     parser.add_argument(
         '--time', type=int, help='slideshow frequency', default=1)
+    parser.add_argument(
+        '--verbose',
+        dest='verbose',
+        action='store_true',
+        help='verbose logging')
     args = parser.parse_args()
     return args
 
@@ -183,6 +191,22 @@ def main():
     """
     # Parse the args
     args = parse_args()
+
+    # set up the logging
+    console = logging.StreamHandler()
+
+    formatter = logging.Formatter('%(levelname)s: %(name)s: %(message)s')
+    console.setFormatter(formatter)
+    log.setFormatter(formatter)
+
+    if args.verbose:
+        log.setLevel(logging.DEBUG)
+        console.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.ERROR)
+        console.setLevel(logging.ERROR)
+
+    log.addHandler(console)
 
     queue = Queue()
 

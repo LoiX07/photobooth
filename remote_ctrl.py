@@ -5,7 +5,7 @@ Remote control module for the photobooth project
 """
 
 import argparse
-from bisect import insort
+from bisect import bisect
 import logging
 import os
 import threading
@@ -51,6 +51,10 @@ class Slideshow:
                                  kwargs.get('size'), kwargs.get('fullscreen'))
         self.display_time = kwargs.get('time')
         self.next = 0
+        self.remove_enabled = False
+        self.remove_index = -1
+        self.remove_pos = (10, 10)
+        self.remove_size = (0, 0)
         self.time_before_next = self.display_time
         self.scrolling = True
         self.quitting = False
@@ -74,7 +78,7 @@ class Slideshow:
                 if os.path.isfile(filename):
                     self.filelist.append(filename)
 
-        sorted(self.filelist)
+        self.filelist = sorted(self.filelist)
         log.debug("Found the following files during the scan: %s",
                   str(self.filelist))
         self.next = 0
@@ -93,6 +97,7 @@ class Slideshow:
             else:
                 self.display.show_message("No pictures available!")
             self.display.apply()
+            return None
         else:
             filename = self.filelist[self.next]
             self.next += 1
@@ -102,6 +107,7 @@ class Slideshow:
                 self.display.show_message(text)
             self.display.apply()
             self.time_before_next = self.display_time
+            return filename
 
     def _monitor_events(self):
         """ Monitor the Slideshow events """
@@ -111,7 +117,8 @@ class Slideshow:
     def run(self):
         """ Main loop """
         while not self.quitting:
-            self.display_next()
+            picture = self.display_next()
+            log.debug('Displaying picture %s', picture)
             while self.time_before_next > 0 and self.scrolling and not self.quitting:
                 # when a new messages arrives, we check whether it is a valid file
                 if not self._queue.empty():
@@ -121,25 +128,39 @@ class Slideshow:
                               new_picture)
                     if os.path.exists(new_picture):
                         # if so, we add it at the end of the list
-                        insort(self.filelist, new_picture)
+                        self.remove_index = bisect(self.filelist, new_picture)
+                        self.filelist.insert(self.remove_index, new_picture)
                         log.debug('File list is now: %s', str(self.filelist))
                         # TODO: and we launch the display of the new picture
-                    # now we display the picture during 15s
-                    self.display.show_picture(new_picture)
-                    self.display.show_button('remove', pos=(10,10), color=(0,0,0))
-                    self.display.apply()
-                    for _ in range(0, 150):
-                        sleep(self.step)
+                        # now we display the picture during 15s
+                        self.display.show_picture(new_picture)
+                        self.remove_enabled = True
+                        log.debug('The remove button is now enabled')
+                        self.remove_size = self.display.show_button(
+                            'remove', self.remove_pos, color=(0, 0, 0))
+                        self.display.apply()
+                        for _ in range(0, 150):
+                            sleep(self.step)
+                            if not self.remove_enabled:
+                                break
+                        self.remove_enabled = False
+                        self.remove_index = -1
+                        log.debug('The remove button is now disabled')
+                        log.debug('Displaying picture %s', picture)
+                        self.display.clear()
+                        self.display.show_picture(picture)
+                        self.display.apply()
                 sleep(self.step)
                 self.time_before_next -= self.step
 
     def handle_event(self, event):
         """ Handle events of the GUI"""
-        log.debug('Received a new event: %s', str(event))
         if event.type == pygame.MOUSEBUTTONUP:
+            log.debug('Received a new event: %s', str(event))
             pos = pygame.mouse.get_pos()
             self.handle_clic(pos)
         elif event.type == pygame.KEYDOWN:
+            log.debug('Received a new event: %s', str(event))
             self.handle_key_pressed(event.key)
 
     def get_size(self):
@@ -153,7 +174,15 @@ class Slideshow:
 
     def handle_clic(self, pos):
         """ Handle a clic or a touch on the screen """
-        # TODO
+        # we check whether the remove button is enabled and
+        # it is a click within the remove button
+        if self.remove_enabled and self.remove_pos[0] <= pos[0] and pos[0] <= self.remove_pos[0] + self.remove_size[0] and self.remove_pos[1] <= pos[1] and pos[1] <= self.remove_pos[1] + self.remove_size[1]:
+            log.debug('Click on the remove button')
+            log.debug('Removing the picture %s', self.filelist[self.remove_index])
+            os.remove(self.filelist[self.remove_index])
+            del(self.filelist[self.remove_index])
+            self.remove_index = -1
+            self.remove_enabled = False
 
     def _teardown(self):
         """ Display closing method """

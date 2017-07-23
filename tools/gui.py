@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
-
 """
 GUI-related classes
 """
 
 import pygame
 
+from .remote_log import REMOTE_LOG as log
+
+
 class GuiException(Exception):
     """
     Custom exception class to handle GUI class errors
     """
+
 
 class GUIModule:
     """ GUI Display using PyGame """
@@ -139,7 +142,12 @@ class GUIModule:
             surface.set_colorkey(background)
 
         self.surface_list.append((surface, (0, 0)))
-
+        log.debug(
+            'Successfully drew button with text %(text)s, position %(position)s and size %(size)s',
+            {'text': text,
+             'position': pos,
+             'size': size})
+        return size
 
     def render_text(self, text, text_height, valign, halign, font, color,
                     background, transparency, outline):
@@ -193,6 +201,7 @@ class GUIModule:
     def teardown(self):
         """Exit function"""
         pygame.quit()
+
 
 def wrap_text(msg, font, size):
     """Wrapping text around the screen"""

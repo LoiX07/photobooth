@@ -45,7 +45,7 @@ class Slideshow:
         self.directory = kwargs.get('path')
         self.recursive = kwargs.get('recursive')
         self.filelist = []
-        self.display = GUIModule("Slideshow", kwargs.get('size'))
+        self.display = GUIModule("Slideshow", kwargs.get('size'), kwargs.get('fullscreen'))
         self.display_time = kwargs.get('time')
         self.next = 0
         self.time_before_next = self.display_time
@@ -183,6 +183,11 @@ def parse_args():
         dest='verbose',
         action='store_true',
         help='verbose logging')
+    parser.add_argument(
+        '--windowed',
+        dest='fullscreen',
+        action='store_false',
+        help='windowed mode')
     args = parser.parse_args()
     return args
 
@@ -224,6 +229,7 @@ def main():
         time=args.time,
         path=args.path,
         queue=queue,
+        fullscreen=args.fullscreen,
         recursive=True)
     slideshow.run()
 

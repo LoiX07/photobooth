@@ -14,7 +14,7 @@ class GuiException(Exception):
 class GUIModule:
     """ GUI Display using PyGame """
 
-    def __init__(self, name, size):
+    def __init__(self, name, size, fullscreen=True):
         # Call init routines
         pygame.init()
 
@@ -26,7 +26,10 @@ class GUIModule:
 
         # Store screen and size
         self.size = size
-        self.screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
+        if fullscreen:
+            self.screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
+        else:
+            self.screen = pygame.display.set_mode(size)
 
         # Clear screen
         self.clear()

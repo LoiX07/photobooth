@@ -5,6 +5,7 @@ Remote control module for the photobooth project
 """
 
 import argparse
+from bisect import insort
 import logging
 import os
 import threading
@@ -45,7 +46,9 @@ class Slideshow:
         self.directory = kwargs.get('path')
         self.recursive = kwargs.get('recursive')
         self.filelist = []
-        self.display = GUIModule("Slideshow", kwargs.get('size'), kwargs.get('fullscreen'))
+        self.scan()
+        self.display = GUIModule("Slideshow",
+                                 kwargs.get('size'), kwargs.get('fullscreen'))
         self.display_time = kwargs.get('time')
         self.next = 0
         self.time_before_next = self.display_time
@@ -71,14 +74,18 @@ class Slideshow:
                 if os.path.isfile(filename):
                     self.filelist.append(filename)
 
-        log.debug("Found the following files during the initial scan: %s",
+        sorted(self.filelist)
+        log.debug("Found the following files during the scan: %s",
                   str(self.filelist))
         self.next = 0
 
     def display_next(self, text=""):
         """ Display the next file in the list """
         if self.next >= len(self.filelist):
-            self.scan()
+            #TODO: what should we do about new files? Maybe it would be better
+            # to do the scan once and to just insert them into an ordered list
+            self.next = 0
+            #self.scan()
         if not self.filelist:
             self.display.clear()
             if text:
@@ -110,10 +117,11 @@ class Slideshow:
                 if not self._queue.empty():
                     new_picture = os.path.join(self.directory,
                                                self._queue.get())
-                    log.debug('Trying to add new picture %s to the file list', new_picture)
+                    log.debug('Trying to add new picture %s to the file list',
+                              new_picture)
                     if os.path.exists(new_picture):
                         # if so, we add it at the end of the list
-                        self.filelist.append(new_picture)
+                        insort(self.filelist, new_picture)
                         log.debug('File list is now: %s', str(self.filelist))
                         # TODO: and we launch the display of the new picture
                 sleep(self.step)

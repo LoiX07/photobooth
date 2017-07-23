@@ -124,6 +124,12 @@ class Slideshow:
                         insort(self.filelist, new_picture)
                         log.debug('File list is now: %s', str(self.filelist))
                         # TODO: and we launch the display of the new picture
+                    # now we display the picture during 15s
+                    self.display.show_picture(new_picture)
+                    self.display.show_button('remove', pos=(10,10), color=(0,0,0))
+                    self.display.apply()
+                    for _ in range(0, 150):
+                        sleep(self.step)
                 sleep(self.step)
                 self.time_before_next -= self.step
 

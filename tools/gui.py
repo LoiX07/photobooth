@@ -30,6 +30,8 @@ class GUIModule:
             self.screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
         else:
             self.screen = pygame.display.set_mode(size)
+            # windowed mode is for debug so we also show the cursor
+            pygame.mouse.set_visible(True)
 
         # Clear screen
         self.clear()

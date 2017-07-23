@@ -58,21 +58,21 @@ class Slideshow:
 
     def scan(self):
         """ Scan the photo dir in order to get a list of files """
-        filelist = []
         if self.recursive:
             # Recursively walk all entries in the directory
             for root, _, filenames in os.walk(
                     self.directory, followlinks=True):
                 for filename in filenames:
-                    filelist.append(os.path.join(root, filename))
+                    self.filelist.append(os.path.join(root, filename))
         else:
             # Add all entries in the directory
             for item in os.listdir(self.directory):
                 filename = os.path.join(self.directory, item)
                 if os.path.isfile(filename):
-                    filelist.append(filename)
+                    self.filelist.append(filename)
 
-        self.filelist = filelist
+        log.debug("Found the following files during the initial scan: %s",
+                  str(self.filelist))
         self.next = 0
 
     def display_next(self, text=""):
@@ -110,15 +110,18 @@ class Slideshow:
                 if not self._queue.empty():
                     new_picture = os.path.join(self.directory,
                                                self._queue.get())
+                    log.debug('Trying to add new picture %s to the file list', new_picture)
                     if os.path.exists(new_picture):
                         # if so, we add it at the end of the list
                         self.filelist.append(new_picture)
+                        log.debug('File list is now: %s', str(self.filelist))
                         # TODO: and we launch the display of the new picture
                 sleep(self.step)
                 self.time_before_next -= self.step
 
     def handle_event(self, event):
         """ Handle events of the GUI"""
+        log.debug('Received a new event: %s', str(event))
         if event.type == pygame.MOUSEBUTTONUP:
             pos = pygame.mouse.get_pos()
             self.handle_clic(pos)
@@ -166,7 +169,6 @@ def parse_args():
     parser.add_argument(
         '--port',
         type=int,
-        nargs=1,
         help='port on which to listen for incoming TCP connections',
         default=5817)
     parser.add_argument(
@@ -197,7 +199,6 @@ def main():
 
     formatter = logging.Formatter('%(levelname)s: %(name)s: %(message)s')
     console.setFormatter(formatter)
-    log.setFormatter(formatter)
 
     if args.verbose:
         log.setLevel(logging.DEBUG)

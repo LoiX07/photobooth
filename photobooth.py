@@ -129,7 +129,6 @@ def main():
 
     formatter = logging.Formatter('%(levelname)s: %(name)s: %(message)s')
     console.setFormatter(formatter)
-    log.setFormatter(formatter)
 
     log.setLevel(logging.WARNING)
     console.setLevel(logging.WARNING)

@@ -42,7 +42,7 @@ class Slideshow:
     taken, displays it during a few time and let user choose if he wants to
     delete it """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.directory = kwargs.get('path')
         self.recursive = kwargs.get('recursive')
         self.filelist = []
@@ -51,10 +51,12 @@ class Slideshow:
                                  kwargs.get('size'), kwargs.get('fullscreen'))
         self.display_time = kwargs.get('time')
         self.next = 0
-        self.remove_enabled = False
-        self.remove_index = -1
-        self.remove_pos = (10, 10)
-        self.remove_size = (0, 0)
+        self.remove = {
+            'enabled': False,
+            'index': -1,
+            'pos': (10, 10),
+            'size': (0, 0)
+        }
         self.time_before_next = self.display_time
         self.scrolling = True
         self.quitting = False
@@ -86,10 +88,7 @@ class Slideshow:
     def display_next(self, text=""):
         """ Display the next file in the list """
         if self.next >= len(self.filelist):
-            #TODO: what should we do about new files? Maybe it would be better
-            # to do the scan once and to just insert them into an ordered list
             self.next = 0
-            #self.scan()
         if not self.filelist:
             self.display.clear()
             if text:
@@ -122,36 +121,39 @@ class Slideshow:
             while self.time_before_next > 0 and self.scrolling and not self.quitting:
                 # when a new messages arrives, we check whether it is a valid file
                 if not self._queue.empty():
-                    new_picture = os.path.join(self.directory,
-                                               self._queue.get())
-                    log.debug('Trying to add new picture %s to the file list',
-                              new_picture)
-                    if os.path.exists(new_picture):
-                        # if so, we add it at the end of the list
-                        self.remove_index = bisect(self.filelist, new_picture)
-                        self.filelist.insert(self.remove_index, new_picture)
-                        log.debug('File list is now: %s', str(self.filelist))
-                        # TODO: and we launch the display of the new picture
-                        # now we display the picture during 15s
-                        self.display.show_picture(new_picture)
-                        self.remove_enabled = True
-                        log.debug('The remove button is now enabled')
-                        self.remove_size = self.display.show_button(
-                            'remove', self.remove_pos, color=(0, 0, 0))
-                        self.display.apply()
-                        for _ in range(0, 150):
-                            sleep(self.step)
-                            if not self.remove_enabled:
-                                break
-                        self.remove_enabled = False
-                        self.remove_index = -1
-                        log.debug('The remove button is now disabled')
-                        log.debug('Displaying picture %s', picture)
-                        self.display.clear()
-                        self.display.show_picture(picture)
-                        self.display.apply()
+                    self._deal_with_new_picture(picture)
                 sleep(self.step)
                 self.time_before_next -= self.step
+
+    def _deal_with_new_picture(self, picture):
+        """Function that handles incoming pictures"""
+        new_picture = os.path.join(self.directory,
+                                   self._queue.get())
+        log.debug('Trying to add new picture %s to the file list',
+                  new_picture)
+        if os.path.exists(new_picture):
+            # if so, we add it at the end of the list
+            self.remove['index'] = bisect(self.filelist, new_picture)
+            self.filelist.insert(self.remove['index'], new_picture)
+            log.debug('File list is now: %s', str(self.filelist))
+            # now we display the picture during 15s
+            self.display.show_picture(new_picture)
+            self.remove['enabled'] = True
+            log.debug('The remove button is now enabled')
+            self.remove['size'] = self.display.show_button(
+                'remove', self.remove['pos'], color=(0, 0, 0))
+            self.display.apply()
+            for _ in range(0, 150):
+                sleep(self.step)
+                if not self.remove['enabled']:
+                    break
+            self.remove['enabled'] = False
+            self.remove['index'] = -1
+            log.debug('The remove button is now disabled')
+            log.debug('Displaying picture %s', picture)
+            self.display.clear()
+            self.display.show_picture(picture)
+            self.display.apply()
 
     def handle_event(self, event):
         """ Handle events of the GUI"""
@@ -176,13 +178,14 @@ class Slideshow:
         """ Handle a clic or a touch on the screen """
         # we check whether the remove button is enabled and
         # it is a click within the remove button
-        if self.remove_enabled and self.remove_pos[0] <= pos[0] and pos[0] <= self.remove_pos[0] + self.remove_size[0] and self.remove_pos[1] <= pos[1] and pos[1] <= self.remove_pos[1] + self.remove_size[1]:
+        if self.remove['enabled'] and self.remove['pos'][0] <= pos[0] and pos[0] <= self.remove['pos'][0] + self.remove['size'][0] and self.remove['pos'][1] <= pos[1] and pos[1] <= self.remove['pos'][1] + self.remove['size'][1]:
             log.debug('Click on the remove button')
-            log.debug('Removing the picture %s', self.filelist[self.remove_index])
-            os.remove(self.filelist[self.remove_index])
-            del(self.filelist[self.remove_index])
-            self.remove_index = -1
-            self.remove_enabled = False
+            log.debug('Removing the picture %s',
+                      self.filelist[self.remove['index']])
+            os.remove(self.filelist[self.remove['index']])
+            del self.filelist[self.remove['index']]
+            self.remove['index'] = -1
+            self.remove['enabled'] = False
 
     def _teardown(self):
         """ Display closing method """

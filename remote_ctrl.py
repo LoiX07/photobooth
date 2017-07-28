@@ -47,8 +47,9 @@ class Slideshow:
         self.recursive = kwargs.get('recursive')
         self.filelist = []
         self.scan()
+        self.size = kwargs.get('size')
         self.display = GUIModule("Slideshow",
-                                 kwargs.get('size'), kwargs.get('fullscreen'))
+                                 self.size, kwargs.get('fullscreen'))
         self.display_time = kwargs.get('time')
         self.next = 0
         self.remove = {
@@ -60,6 +61,7 @@ class Slideshow:
         self.time_before_next = self.display_time
         self.scrolling = True
         self.quitting = False
+        self.click_x = -1
         self.step = 0.1
         self._queue = kwargs.get('queue')
         self._monitoring_thread = threading.Thread(target=self._monitor_events)
@@ -100,6 +102,29 @@ class Slideshow:
         else:
             filename = self.filelist[self.next]
             self.next += 1
+            self.display.clear()
+            self.display.show_picture(filename)
+            if text:
+                self.display.show_message(text)
+            self.display.apply()
+            self.time_before_next = self.display_time
+            return filename
+
+    def display_prev(self, text=""):
+        """ Display the previous file in the list """
+        if self.next < 0:
+            self.next = len(self.filelist) - 1
+        if not self.filelist:
+            self.display.clear()
+            if text:
+                self.display.show_message(text)
+            else:
+                self.display.show_message("No pictures available!")
+            self.display.apply()
+            return None
+        else:
+            filename = self.filelist[self.next]
+            self.next -= 1
             self.display.clear()
             self.display.show_picture(filename)
             if text:
@@ -160,7 +185,11 @@ class Slideshow:
         if event.type == pygame.MOUSEBUTTONUP:
             log.debug('Received a new event: %s', str(event))
             pos = pygame.mouse.get_pos()
-            self.handle_clic(pos)
+            self.handle_mouseup(pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            log.debug('Received a new event: %s', str(event))
+            pos = pygame.mouse.get_pos()
+            self.handle_mousedown(pos)
         elif event.type == pygame.KEYDOWN:
             log.debug('Received a new event: %s', str(event))
             self.handle_key_pressed(event.key)
@@ -174,8 +203,8 @@ class Slideshow:
         if key == pygame.constants.K_q:
             self._teardown()
 
-    def handle_clic(self, pos):
-        """ Handle a clic or a touch on the screen """
+    def handle_mouseup(self, pos):
+        """ Handle a clic (mouseup) or a touch on the screen """
         # we check whether the remove button is enabled and
         # it is a click within the remove button
         if self.remove['enabled'] and self.remove['pos'][0] <= pos[0] and pos[0] <= self.remove['pos'][0] + self.remove['size'][0] and self.remove['pos'][1] <= pos[1] and pos[1] <= self.remove['pos'][1] + self.remove['size'][1]:
@@ -186,6 +215,33 @@ class Slideshow:
             del self.filelist[self.remove['index']]
             self.remove['index'] = -1
             self.remove['enabled'] = False
+        # if the remove button is disabled and we registered we mouseup beforehand
+        if self.remove['disabled'] and self.click_x != -1:
+            # if the click is within the rightmost 20th of the screen
+            # or we swiped toward the right direction for more than 1/20th
+            # of the screen width
+            if (self.size[0] - pos[0]) <= (self.size[0] / 20) or (pos[0] - self.click_x) >= (self.size[0] / 20):
+                # we reset the click variable
+                self.click_x = -1
+                # and we display the next picture
+                self.display_next()
+            # if the click is within the leftmost 20th of the screen
+            # or we swiped toward the left direction for more than 1/20th
+            # of the screen width
+            elif pos[0] <= (self.size[0] / 20) or (self.click_x - pos[0]) >= (self.size[0] / 20):
+                # we reset the click variable
+                self.click_x = -1
+                # and we display the previous picture
+                self.display_prev()
+            # otherwise we ignore the click
+            else:
+                return
+
+    def handle_mousedown(self, pos):
+        """ Handle a click (mouse down) on the screen """
+        # if the remove button is disabled, we register the x coordinates of the click
+        if self.remove['disabled']:
+            self.click_x = pos[0]
 
     def _teardown(self):
         """ Display closing method """

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Module that contains the definition of the reflex camera"""
 
+from datetime import datetime
+from os.path import join
 import gphoto2 as gp
 
 from .camera import Camera
@@ -21,6 +23,7 @@ class ReflexCam(Camera):
 
     def take_picture(self, path, basename):
         """ Take a picture with the camera """
+        #TODO To review...
         print('Capturing image')
         file_path = gp.check_result(gp.gp_camera_capture(
         camera, gp.GP_CAPTURE_IMAGE, self.context))
@@ -31,7 +34,9 @@ class ReflexCam(Camera):
             self.camera, file_path.folder, file_path.name,
             gp.GP_FILE_TYPE_NORMAL, context))
         gp.check_result(gp.gp_file_save(camera_file, target))
-    
+        new_name = join(path, datetime.now().strftime(basename))
+        return new_name
+
     def close(self):
         """ Free the camera ressources to avoid GPU memory leaks """
         gp.check_result(gp.gp_camera_exit(self.camera,self.context))

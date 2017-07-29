@@ -218,26 +218,31 @@ class Slideshow:
             del self.filelist[self.remove['index']]
             self.remove['index'] = -1
             self.remove['enabled'] = False
+            return
         # if the remove button is disabled and we registered we mouseup beforehand
         if self.remove['disabled'] and self.click_x != -1:
-            # if the click is within the rightmost 20th of the screen
-            # or we swiped toward the right direction for more than 1/20th
+            # if the click is within the rightmost 10th of the screen
+            # or we swiped toward the right direction for more than 1/10th
             # of the screen width
-            if (self.size[0] - pos[0]) <= (self.size[0] / 20) or (pos[0] - self.click_x) >= (self.size[0] / 20):
+            if (self.size[0] - pos[0]) <= (self.size[0] / 10) or (pos[0] - self.click_x) >= (self.size[0] / 10):
                 # we reset the click variable
                 self.click_x = -1
                 # and we display the next picture
                 self.display_next()
+                return
             # if the click is within the leftmost 20th of the screen
-            # or we swiped toward the left direction for more than 1/20th
+            # or we swiped toward the left direction for more than 1/10th
             # of the screen width
-            elif pos[0] <= (self.size[0] / 20) or (self.click_x - pos[0]) >= (self.size[0] / 20):
+            elif pos[0] <= (self.size[0] / 10) or (self.click_x - pos[0]) >= (self.size[0] / 10):
                 # we reset the click variable
                 self.click_x = -1
                 # and we display the previous picture
                 self.display_prev()
+                return
             # otherwise we ignore the click
+            # and reset the previous position
             else:
+                self.click_x = -1
                 return
 
     def handle_mousedown(self, pos):

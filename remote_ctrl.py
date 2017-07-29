@@ -89,6 +89,7 @@ class Slideshow:
 
     def display_next(self, text=""):
         """ Display the next file in the list """
+        log.debug("Displaying next picture")
         if self.next >= len(self.filelist):
             self.next = 0
         if not self.filelist:
@@ -108,10 +109,13 @@ class Slideshow:
                 self.display.show_message(text)
             self.display.apply()
             self.time_before_next = self.display_time
+            log.debug("Next picture index is %s", str(self.next))
+            log.debug("New picture name is %s", filename)
             return filename
 
     def display_prev(self, text=""):
         """ Display the previous file in the list """
+        log.debug("Displaying prev picture")
         if self.next < 0:
             self.next = len(self.filelist) - 1
         if not self.filelist:
@@ -131,6 +135,8 @@ class Slideshow:
                 self.display.show_message(text)
             self.display.apply()
             self.time_before_next = self.display_time
+            log.debug("Next picture index is %s", str(self.next))
+            log.debug("New picture name is %s", filename)
             return filename
 
     def _monitor_events(self):
@@ -220,11 +226,12 @@ class Slideshow:
             self.remove['enabled'] = False
             return
         # if the remove button is disabled and we registered we mouseup beforehand
-        if self.remove['disabled'] and self.click_x != -1:
+        if not self.remove['enabled'] and self.click_x != -1:
             # if the click is within the rightmost 10th of the screen
             # or we swiped toward the right direction for more than 1/10th
             # of the screen width
             if (self.size[0] - pos[0]) <= (self.size[0] / 10) or (pos[0] - self.click_x) >= (self.size[0] / 10):
+                log.debug("Detecting a swipe right event")
                 # we reset the click variable
                 self.click_x = -1
                 # and we display the next picture
@@ -234,6 +241,7 @@ class Slideshow:
             # or we swiped toward the left direction for more than 1/10th
             # of the screen width
             elif pos[0] <= (self.size[0] / 10) or (self.click_x - pos[0]) >= (self.size[0] / 10):
+                log.debug("Detecting a swipe left event")
                 # we reset the click variable
                 self.click_x = -1
                 # and we display the previous picture
@@ -248,7 +256,7 @@ class Slideshow:
     def handle_mousedown(self, pos):
         """ Handle a click (mouse down) on the screen """
         # if the remove button is disabled, we register the x coordinates of the click
-        if self.remove['disabled']:
+        if not self.remove['enabled']:
             self.click_x = pos[0]
 
     def _teardown(self):

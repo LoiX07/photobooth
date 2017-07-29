@@ -33,7 +33,9 @@ class RaspiCam(Camera):
 
     def take_picture(self, path, basename):
         """ Take a picture with the camera """
-        self.camera.capture(join(path, datetime.now().strftime(basename)))
+        new_name = join(path, datetime.now().strftime(basename))
+        self.camera.capture(new_name)
+        return new_name
 
     def close(self):
         """ Free the camera ressources to avoid GPU memory leaks """

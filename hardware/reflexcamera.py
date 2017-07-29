@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Module that contains the definition of the reflex camera"""
 
+from datetime import datetime
+from os.path import join
 import gphoto2 as gp
 
 from .camera import Camera
@@ -21,6 +23,8 @@ class ReflexCam(Camera):
 
     def take_picture(self, path, basename):
         """ Take a picture with the camera """
+        new_name = join(path, datetime.now().strftime(basename))
+        return new_name
 
     def close(self):
         """ Free the camera ressources to avoid GPU memory leaks """

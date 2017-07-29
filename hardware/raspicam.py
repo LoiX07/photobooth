@@ -34,7 +34,7 @@ class RaspiCam(Camera):
     def take_picture(self, path, basename):
         """ Take a picture with the camera """
         new_name = join(path, datetime.now().strftime(basename))
-        self.camera.capture(join(path, datetime.now().strftime(basename)))
+        self.camera.capture(new_name)
         return new_name
 
     def close(self):

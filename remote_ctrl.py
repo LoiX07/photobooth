@@ -146,18 +146,21 @@ class Slideshow:
             while self.time_before_next > 0 and self.scrolling and not self.quitting:
                 # when a new messages arrives, we check whether it is a valid file
                 if not self._queue.empty():
-                    self._deal_with_new_picture(picture)
+                    self.deal_with_new_picture(picture)
                 sleep(self.step)
                 self.time_before_next -= self.step
 
-    def _deal_with_new_picture(self, picture):
+    def deal_with_new_picture(self, picture):
         """Function that handles incoming pictures"""
         new_picture = os.path.join(self.directory,
                                    self._queue.get())
         log.debug('Trying to add new picture %s to the file list',
                   new_picture)
+        # we check whether the new picture really exists
         if os.path.exists(new_picture):
-            # if so, we add it at the end of the list
+            # just in case we discard any previous clickdown event
+            self.click_x = -1
+            # we add the new picture at the end of the list
             self.remove['index'] = bisect(self.filelist, new_picture)
             self.filelist.insert(self.remove['index'], new_picture)
             log.debug('File list is now: %s', str(self.filelist))

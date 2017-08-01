@@ -2,7 +2,7 @@
 
 """Lighting module for the photobooth"""
 
-import wiringpi2 as wiringpi
+import wiringpi
 
 class Lamp:
     """ Lighting for the Photobooth """

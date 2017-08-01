@@ -9,7 +9,6 @@ from picamera import PiCamera
 
 from .camera import Camera
 
-
 class RaspiCam(Camera):
     """ Camera Raspberry """
 

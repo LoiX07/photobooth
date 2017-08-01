@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Display module for the photobooth"""
 
-import wiringpi2 as wiringpi
+import wiringpi
 
 
 class CountDisplay:

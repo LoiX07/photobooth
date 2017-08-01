@@ -8,13 +8,15 @@ import sys
 from datetime import datetime
 from time import sleep
 
-import wiringpi2 as wiringpi
-from hardware import CountDisplay, Lamp, RaspiCam
+import wiringpi
+from hardware import CountDisplay, Lamp, RaspiCam, ReflexCam
 from tools.photo_log import PHOTO_LOG as log
 
 ##################
 ### Parameters ###
 ##################
+
+# GPIO connections
 GPIO_LAMP_CHANNEL = 18
 GPIO_TRIGGER_CHANNEL = 23
 GPIO_SHUTDOWN_CHANNEL = 24
@@ -29,13 +31,17 @@ GPIO_7SEGMENTS_DISPLAY = {
 }
 GPIO_SHUTDOWN_LED_CHANNEL = 12
 GPIO_TRIGGER_LED_CHANNEL = 25
+
+# Camera type and version
+TYPE_CAMERA = 2  # 1 for raspberry pi camera, 2 for a reflex camera
+VERSION_CAMERA = 2  # 1 or 2 depending of the camera version
+
+# Pictures properties
 PICTURE_PATH = datetime.now().strftime("%Y-%m-%d_Photomaton")
 PICTURE_BASENAME = "%H-%M-%S_Photomaton.jpeg"
-#TODO: fill in the value
-PICTURE_SIZE = 0
-TYPE_CAMERA = 1  # 1 for raspberry pi camera, 2 for a reflex camera
-VERSION_CAMERA = 1  # 1 or 2 depending of the camera version
+PICTURE_SIZE = 0 #TODO: fill in the value
 
+# Network parameters
 HOST, PORT = "localhost", 5817
 
 #####################

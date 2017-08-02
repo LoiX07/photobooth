@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """Picture taking module"""
 
+from multiprocessing import Process, Queue
 import logging
 import socket
 import sys
@@ -85,6 +86,11 @@ class Photobooth:
         # semaphore on picture taking (to ignore a second clic during a taking picture sequence)
         self.taking_picture = False
 
+        # create the compressing process
+        self.queue = Queue()
+        self.process = Process(target = self.process_new_picture, args=())
+        self.process.start()
+
     def take_picture(self):
         """ Launch the photo sequence """
         # equivalent: if self.taking_picture is False
@@ -101,19 +107,31 @@ class Photobooth:
                     sleep(1)
             # Take a picture
             new_name = self.camera.take_picture(self.picture_path, self.picture_basename)
-            # send the picture name through a TCP socket
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                # Connect to server and send data
-                sock.connect((HOST, PORT))
-                sock.sendall(bytes(new_name + "\n", "utf-8"))
+            # now put it into the queue
+            self.queue.put(new_name)
             sleep(1)  #TODO : to adjust
             self.lamp.idle()
             self.count_display.switch_off()
             wiringpi.digitalWrite(self.shutdown_led_channel, 1)
             self.taking_picture = False
 
+    def process_new_picture(self):
+        while True:
+            if not self.queue.empty():
+                name = self.queue.get()
+                if name == 'exit':
+                    return
+                # TODO somehow process the new picture
+                # send the picture name through a TCP socket
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                        # Connect to server and send data
+                        sock.connect((HOST, PORT))
+                        # TODO name needs to be changed
+                        sock.sendall(bytes(name + "\n", "utf-8"))
+
     def quit(self):
         """ Cleanup function """
+        self.queue.put("exit")
         self.camera.close()
         self.lamp.set_level(0)
         self.count_display.switch_off()

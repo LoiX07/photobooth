@@ -1,11 +1,21 @@
 # -*- coding: utf-8 -*-
 """Module that contains the definition of the rasp pi camera"""
 
+import logging
+
+if 'PHOTO_LOG' in globals():
+    log = PHOTO_LOG
+else:
+     log = logging.getLogger("RASPICAM_LOG")
+
 from datetime import datetime
 from os.path import join
 from time import sleep
 
-from picamera import PiCamera
+try:
+    from picamera import PiCamera
+except ImportError :
+    log.warning("PiCamera cannot be loaded. Probably no device detected")
 
 from .camera import Camera
 

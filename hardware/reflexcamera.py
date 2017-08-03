@@ -26,13 +26,10 @@ class ReflexCam(Camera):
         #TODO To review...
         print('Capturing image')
         file_path = gp.check_result(gp.gp_camera_capture(
-        camera, gp.GP_CAPTURE_IMAGE, self.context))
-        print('Camera file path: {0}/{1}'.format(file_path.folder, file_path.name))
-        target = os.path.join('/tmp', file_path.name)
-        print('Copying image to', target)
+                                    self.camera, gp.GP_CAPTURE_IMAGE, self.context))
         camera_file = gp.check_result(gp.gp_camera_file_get(
-            self.camera, file_path.folder, file_path.name,
-            gp.GP_FILE_TYPE_NORMAL, context))
+            self.camera, path, basename,
+            gp.GP_FILE_TYPE_NORMAL, context)) #TODO define context ??
         gp.check_result(gp.gp_file_save(camera_file, target))
         new_name = join(path, datetime.now().strftime(basename))
         return new_name

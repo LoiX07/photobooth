@@ -4,6 +4,8 @@
 
 import wiringpi
 
+from math import *
+
 class Lamp:
     """ Lighting for the Photobooth """
 
@@ -11,14 +13,14 @@ class Lamp:
         """ Initialization """
         self.channel = channel
         wiringpi.pinMode(channel, 2)
-        wiringpi.pwmSetMode(channel, 0)
+        wiringpi.pwmSetMode(wiringpi.PWM_MODE_MS)
 
     def idle(self):
         """ Set the lights to idle level """
         #TODO: does it need to be a method?
-        wiringpi.pwmWrite(0.1 * 1024)
+        wiringpi.pwmWrite(self.channel,floor(0.1 * 1024))
 
     def set_level(self, level):
         """ Lighting coefficient modification between 0 and 1 """
         #TODO: does it need to be a method?
-        wiringpi.pwmWrite(self.channel, level * 1024)
+        wiringpi.pwmWrite(self.channel,floor(level * 1024))

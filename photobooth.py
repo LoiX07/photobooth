@@ -2,14 +2,15 @@
 # -*- coding: utf-8 -*-
 """Picture taking module"""
 
+import argparse
 import logging
 import socket
 import sys
 from datetime import datetime
 from time import sleep
 
-import wiringpi
-from hardware import CountDisplay, Lamp, RaspiCam, ReflexCam
+from wiringpi import *
+from hardware import CountDisplay, Lamp
 from tools.photo_log import PHOTO_LOG as log
 
 ##################
@@ -19,7 +20,9 @@ from tools.photo_log import PHOTO_LOG as log
 # GPIO connections
 GPIO_LAMP_CHANNEL = 18
 GPIO_TRIGGER_CHANNEL = 23
+GPIO_TRIGGER_LED_CHANNEL = 25
 GPIO_SHUTDOWN_CHANNEL = 24
+GPIO_SHUTDOWN_LED_CHANNEL = 12
 GPIO_7SEGMENTS_DISPLAY = {
     "A": 2,
     "B": 3,
@@ -29,15 +32,18 @@ GPIO_7SEGMENTS_DISPLAY = {
     "F": 22,
     "G": 5
 }
-GPIO_SHUTDOWN_LED_CHANNEL = 12
-GPIO_TRIGGER_LED_CHANNEL = 25
 
 # Camera type and version
 TYPE_CAMERA = 2  # 1 for raspberry pi camera, 2 for a reflex camera
 VERSION_CAMERA = 2  # 1 or 2 depending of the camera version
 
+if TYPE_CAMERA == 1:
+    from hardware import RaspiCam
+elif TYPE_CAMERA == 2:
+    from hardware import ReflexCam
+
 # Pictures properties
-PICTURE_PATH = datetime.now().strftime("%Y-%m-%d_Photomaton")
+PICTURE_FOLDER= datetime.now().strftime("%Y-%m-%d_Photomaton")
 PICTURE_BASENAME = "%H-%M-%S_Photomaton.jpeg"
 PICTURE_SIZE = 0 #TODO: fill in the value
 
@@ -47,7 +53,7 @@ HOST, PORT = "localhost", 5817
 #####################
 ### Configuration ###
 #####################
-wiringpi.wiringPiSetupGpio()  # use wiringpi numerotation
+wiringPiSetupGpio()  # use wiringpi numerotation
 
 
 ###############
@@ -61,7 +67,7 @@ class Photobooth:
                  shutdown_channel, shutdown_led_channel, lamp_channel):
         """ Initialization """
         # Initialize the parameters
-        self.picture_path = picture_path
+        self.picture_path = picture_path+"/"+PICTURE_FOLDER
         self.picture_basename = picture_basename
         self.picture_size = picture_size
         self.trigger_channel = trigger_channel
@@ -70,23 +76,26 @@ class Photobooth:
         self.shutdown_led_channel = shutdown_led_channel
 
         # Create the objects
-        self.camera = RaspiCam(version=VERSION_CAMERA)
+        if TYPE_CAMERA == 1:
+            self.camera = RaspiCam(version=VERSION_CAMERA)
+        elif TYPE_CAMERA == 2:
+            self.camera = ReflexCam()
         self.count_display = CountDisplay(seven_segments_channels)
         self.lamp = Lamp(lamp_channel)
 
         # Switch on the lights
-        self.lamp.idle()
-        wiringpi.digitalWrite(self.trigger_led_channel, 1)
-        wiringpi.digitalWrite(self.shutdown_led_channel, 1)
+        pinMode(self.trigger_led_channel, OUTPUT)
+        digitalWrite(self.trigger_led_channel, HIGH)
+        pinMode(self.shutdown_led_channel, OUTPUT)
+        digitalWrite(self.shutdown_led_channel, HIGH)
 
         # Events detection
-        wiringpi.pinMode(trigger_channel, 0)
-        wiringpi.pullUpDnControl(trigger_channel, 1)
-        wiringpi.wiringPiISR(trigger_channel, 2, self.take_picture)
-        wiringpi.pinMode(shutdown_channel, 0)
-        wiringpi.pullUpDnControl(shutdown_channel, 1)
-        #TODO: undefined variable trigger_shutdown?
-        wiringpi.wiringPiISR(trigger_shutdown, 2, self.quit)
+        pinMode(trigger_channel, INPUT)
+        pullUpDnControl(trigger_channel, PUD_UP)
+        wiringPiISR(trigger_channel,INT_EDGE_FALLING, self.take_picture)
+        pinMode(shutdown_channel, INPUT)
+        pullUpDnControl(shutdown_channel, PUD_UP)
+        wiringPiISR(shutdown_channel, INT_EDGE_FALLING, self.quit)
 
         # semaphore on picture taking (to ignore a second clic during a taking picture sequence)
         self.taking_picture = False
@@ -96,7 +105,7 @@ class Photobooth:
         # equivalent: if self.taking_picture is False
         if not self.taking_picture:
             self.taking_picture = True
-            wiringpi.digitalWrite(self.shutdown_led_channel, 0)
+            digitalWrite(self.trigger_led_channel, 0)
             self.camera.prepare_camera()
             # python3 range is python2 xrange
             for i in range(5, 0, -1):
@@ -105,8 +114,12 @@ class Photobooth:
                 self.count_display.display(i)  # Countdown update
                 if i != 0:
                     sleep(1)
+            self.count_display.display(0)  # Countdown update
             # Take a picture
             new_name = self.camera.take_picture(self.picture_path, self.picture_basename)
+            # Reset the buttons
+            self.count_display.switch_off()
+            digitalWrite(self.trigger_led_channel,HIGH)
             # send the picture name through a TCP socket
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 # Connect to server and send data
@@ -115,7 +128,7 @@ class Photobooth:
             sleep(1)  #TODO : to adjust
             self.lamp.idle()
             self.count_display.switch_off()
-            wiringpi.digitalWrite(self.shutdown_led_channel, 1)
+            digitalWrite(self.shutdown_led_channel, 1)
             self.taking_picture = False
 
     def quit(self):
@@ -123,25 +136,56 @@ class Photobooth:
         self.camera.close()
         self.lamp.set_level(0)
         self.count_display.switch_off()
-        wiringpi.digitalWrite(self.trigger_led_channel, 0)
-        wiringpi.digitalWrite(self.shutdown_led_channel, 0)
+        digitalWrite(self.trigger_led_channel, 0)
+        digitalWrite(self.shutdown_led_channel, 0)
         sys.exit()
 
 
+#################
+### Functions ###
+#################
+
+
+def parse_args():
+    """
+    Helper function that parses the command-line arguments
+    """
+    parser = argparse.ArgumentParser(
+        description='Programme principal du Photobooth')
+    parser.add_argument(
+        '--path', type=str, help='path to save the pictures', required=True)
+    parser.add_argument(
+        '--verbose',
+        dest='verbose',
+        action='store_true',
+        help='verbose logging')
+    args = parser.parse_args()
+    return args
+
+
 def main():
-    """ Main script """
+    """
+    Main function
+    """
+    # Parse the args
+    args = parse_args()
+
     # set up the logging
     console = logging.StreamHandler()
 
     formatter = logging.Formatter('%(levelname)s: %(name)s: %(message)s')
     console.setFormatter(formatter)
 
-    log.setLevel(logging.WARNING)
-    console.setLevel(logging.WARNING)
+    if args.verbose:
+        log.setLevel(logging.DEBUG)
+        console.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.ERROR)
+        console.setLevel(logging.ERROR)
 
     log.addHandler(console)
 
-    Photobooth(PICTURE_PATH, PICTURE_BASENAME, PICTURE_SIZE,
+    Photobooth(args.path, PICTURE_BASENAME, PICTURE_SIZE,
                GPIO_TRIGGER_CHANNEL, GPIO_TRIGGER_LED_CHANNEL,
                GPIO_7SEGMENTS_DISPLAY, GPIO_SHUTDOWN_CHANNEL,
                GPIO_SHUTDOWN_LED_CHANNEL, GPIO_LAMP_CHANNEL)

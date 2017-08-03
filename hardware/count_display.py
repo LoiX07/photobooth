@@ -34,6 +34,7 @@ class CountDisplay:
 
     def switch_off(self):
         """ Shutdown of the display """
-        for char in "ABCDEF":
+        for char in "ABCDEFG":
             wiringpi.digitalWrite(self.channels[char],
-                                  1)  # swith off the segment
+                    wiringpi.LOW)
+                                  

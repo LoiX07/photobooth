@@ -6,6 +6,7 @@ import argparse
 from multiprocessing import Process, Queue
 import logging
 import socket
+import os
 import sys
 from datetime import datetime
 from time import sleep
@@ -45,6 +46,7 @@ elif TYPE_CAMERA == 2:
 
 # Pictures properties
 PICTURE_FOLDER = datetime.now().strftime("%Y-%m-%d_Photomaton")
+PICTURE_COMPRESSED_FOLDER = "Compressed"
 PICTURE_BASENAME = "%H-%M-%S_Photomaton.jpeg"
 PICTURE_SIZE = 0  # TODO: fill in the value
 
@@ -63,12 +65,13 @@ wiringPiSetupGpio()  # use wiringpi numerotation
 class Photobooth:
     """ Photobooth """
 
-    def __init__(self, picture_path, picture_basename, picture_size,
+    def __init__(self, picture_path, picture_compressed_path, picture_basename, picture_size,
                  trigger_channel, trigger_led_channel, seven_segments_channels,
                  shutdown_channel, shutdown_led_channel, lamp_channel):
         """ Initialization """
         # Initialize the parameters
-        self.picture_path = picture_path + "/" + PICTURE_FOLDER
+        self.picture_path = os.path.abspath(os.path.join(picture_path,PICTURE_FOLDER))
+        self.picture_compressed_path = picture_compressed_path
         self.picture_basename = picture_basename
         self.picture_size = picture_size
         self.trigger_channel = trigger_channel
@@ -124,7 +127,7 @@ class Photobooth:
             self.count_display.display(0)  # Countdown update
             # Take a picture
             new_name = self.camera.take_picture(
-                self.picture_path, self.picture_basename)
+                self.picture_path,datetime.now().strftime(self.picture_basename))
             # Reset the buttons
             self.count_display.switch_off()
             digitalWrite(self.trigger_led_channel, HIGH)
@@ -148,6 +151,12 @@ class Photobooth:
                 if name == 'exit':
                     return
                 # TODO somehow process the new picture
+                image_orig = Image.open(name)
+                image_resized = image_orig.resize((800,480),Image.ANTIALIAS)
+                new_image_name = os.path.basename(path)
+                new_image_name = os.path.splitext(new_image_name)[0] + ".jpg")
+                new_path = os.path.join(self.picture_compressed_path,image_resized)
+                image_resized.save(new_path)
                 # send the picture name through a TCP socket
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     # Connect to server and send data
@@ -157,6 +166,7 @@ class Photobooth:
 
     def quit(self):
         """ Cleanup function """
+        log.debug("Cleaning the photobooth")
         self.queue.put("exit")
         self.camera.close()
         self.lamp.set_level(0)
@@ -210,7 +220,7 @@ def main():
 
     log.addHandler(console)
 
-    Photobooth(args.path, PICTURE_BASENAME, PICTURE_SIZE,
+    Photobooth(args.path,PICTURE_COMPRESSED_FOLDER, PICTURE_BASENAME, PICTURE_SIZE,
                GPIO_TRIGGER_CHANNEL, GPIO_TRIGGER_LED_CHANNEL,
                GPIO_7SEGMENTS_DISPLAY, GPIO_SHUTDOWN_CHANNEL,
                GPIO_SHUTDOWN_LED_CHANNEL, GPIO_LAMP_CHANNEL)

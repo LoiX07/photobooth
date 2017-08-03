@@ -4,11 +4,12 @@
 
 import argparse
 from multiprocessing import Process, Queue
+from PIL import Image
 import logging
 import socket
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import sleep
 
 from wiringpi import *
@@ -46,7 +47,6 @@ elif TYPE_CAMERA == 2:
 
 # Pictures properties
 PICTURE_FOLDER = datetime.now().strftime("%Y-%m-%d_Photomaton")
-PICTURE_COMPRESSED_FOLDER = "Compressed"
 PICTURE_BASENAME = "%H-%M-%S_Photomaton.jpeg"
 PICTURE_SIZE = 0  # TODO: fill in the value
 
@@ -71,7 +71,7 @@ class Photobooth:
         """ Initialization """
         # Initialize the parameters
         self.picture_path = os.path.abspath(os.path.join(picture_path,PICTURE_FOLDER))
-        self.picture_compressed_path = picture_compressed_path
+        self.picture_compressed_path = os.path.abspath(os.path.join(picture_compressed_path,PICTURE_FOLDER))
         self.picture_basename = picture_basename
         self.picture_size = picture_size
         self.trigger_channel = trigger_channel
@@ -103,7 +103,7 @@ class Photobooth:
 
         # semaphore on picture taking (to ignore a second clic during a taking
         # picture sequence)
-        self.taking_picture = False
+        self.picture_time = datetime.now() - timedelta(seconds=10)
 
         # create the compressing process
         self.queue = Queue()
@@ -113,8 +113,12 @@ class Photobooth:
     def take_picture(self):
         """ Launch the photo sequence """
         # equivalent: if self.taking_picture is False
-        if not self.taking_picture:
-            self.taking_picture = True
+        if datetime.now() - self.picture_time < timedelta(seconds=10):
+            print("too soon")
+            return
+        else:
+            print("taking picture")
+            self.picture_time = datetime.now()
             digitalWrite(self.trigger_led_channel, 0)
             self.camera.prepare_camera()
             # python3 range is python2 xrange
@@ -131,18 +135,13 @@ class Photobooth:
             # Reset the buttons
             self.count_display.switch_off()
             digitalWrite(self.trigger_led_channel, HIGH)
-            # send the picture name through a TCP socket
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                # Connect to server and send data
-                sock.connect((HOST, PORT))
-                sock.sendall(bytes(new_name + "\n", "utf-8"))
             # now put it into the queue
-            self.queue.put(new_name)
+            if new_name:
+                self.queue.put(new_name)
             sleep(1)  # TODO : to adjust
             self.lamp.idle()
             self.count_display.switch_off()
             digitalWrite(self.shutdown_led_channel, 1)
-            self.taking_picture = False
 
     def process_new_picture(self):
         while True:
@@ -153,16 +152,15 @@ class Photobooth:
                 # TODO somehow process the new picture
                 image_orig = Image.open(name)
                 image_resized = image_orig.resize((800,480),Image.ANTIALIAS)
-                new_image_name = os.path.basename(path)
-                new_image_name = os.path.splitext(new_image_name)[0] + ".jpg")
-                new_path = os.path.join(self.picture_compressed_path,image_resized)
+                new_image_name = os.path.basename(name)
+                new_image_name = os.path.splitext(new_image_name)[0] + ".jpg"
+                new_path = os.path.join(self.picture_compressed_path, new_image_name)
                 image_resized.save(new_path)
                 # send the picture name through a TCP socket
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     # Connect to server and send data
                     sock.connect((HOST, PORT))
-                    # TODO name needs to be changed
-                    sock.sendall(bytes(name + "\n", "utf-8"))
+                    sock.sendall(bytes(new_path + "\n", "utf-8"))
 
     def quit(self):
         """ Cleanup function """
@@ -189,6 +187,8 @@ def parse_args():
         description='Programme principal du Photobooth')
     parser.add_argument(
         '--path', type=str, help='path to save the pictures', required=True)
+    parser.add_argument(
+        '--out', type=str, help='path for the compressed pictures', required=True)
     parser.add_argument(
         '--verbose',
         dest='verbose',
@@ -220,7 +220,7 @@ def main():
 
     log.addHandler(console)
 
-    Photobooth(args.path,PICTURE_COMPRESSED_FOLDER, PICTURE_BASENAME, PICTURE_SIZE,
+    Photobooth(args.path,args.out, PICTURE_BASENAME, PICTURE_SIZE,
                GPIO_TRIGGER_CHANNEL, GPIO_TRIGGER_LED_CHANNEL,
                GPIO_7SEGMENTS_DISPLAY, GPIO_SHUTDOWN_CHANNEL,
                GPIO_SHUTDOWN_LED_CHANNEL, GPIO_LAMP_CHANNEL)

@@ -38,14 +38,17 @@ class ReflexCam(Camera):
         # TODO To review...
 
         print('Capturing image')
-        file_path = gp.check_result(gp.gp_camera_capture(
-                                    self.camera, gp.GP_CAPTURE_IMAGE, self.context))
-        # camera_file = gp.check_result(gp.gp_camera_file_get(
-            #self.camera, path, name,
-            #gp.GP_FILE_TYPE_NORMAL, self.context))  # TODO define context ??
+        try:
+            file_path = gp.check_result(gp.gp_camera_capture(
+                                        self.camera, gp.GP_CAPTURE_IMAGE, self.context))
+        except:
+            return
+        camera_file = gp.check_result(gp.gp_camera_file_get(
+            self.camera, file_path.folder, file_path.name,
+            gp.GP_FILE_TYPE_NORMAL, self.context))  # TODO define context ??
+        target = os.path.join(path, name)
         gp.check_result(gp.gp_file_save(camera_file, target))
-        new_name = os.path.join(path, datetime.now().strftime(basename))
-        return new_name
+        return target
 
     def close(self):
         """ Free the camera ressources to avoid GPU memory leaks """

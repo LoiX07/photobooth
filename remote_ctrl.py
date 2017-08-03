@@ -150,7 +150,8 @@ class Slideshow:
             picture = self.display_next()
             log.debug('Displaying picture %s', picture)
             while self.time_before_next > 0 and self.scrolling and not self.quitting:
-                # when a new messages arrives, we check whether it is a valid file
+                # when a new messages arrives, we check whether it is a valid
+                # file
                 if not self._queue.empty():
                     self.deal_with_new_picture(picture)
                 sleep(self.step)
@@ -216,7 +217,8 @@ class Slideshow:
         """ Handle a clic (mouseup) or a touch on the screen """
         # we check whether the remove button is enabled and
         # it is a click within the remove button
-        if self.remove['enabled'] and self.remove['pos'][0] <= pos[0] and pos[0] <= self.remove['pos'][0] + self.remove['size'][0] and self.remove['pos'][1] <= pos[1] and pos[1] <= self.remove['pos'][1] + self.remove['size'][1]:
+        if self.remove['enabled'] and self.remove['pos'][0] <= pos[0] and pos[0] <= self.remove['pos'][0] + \
+                self.remove['size'][0] and self.remove['pos'][1] <= pos[1] and pos[1] <= self.remove['pos'][1] + self.remove['size'][1]:
             log.debug('Click on the remove button')
             log.debug('Removing the picture %s',
                       self.filelist[self.remove['index']])
@@ -225,12 +227,14 @@ class Slideshow:
             self.remove['index'] = -1
             self.remove['enabled'] = False
             return
-        # if the remove button is disabled and we registered we mouseup beforehand
+        # if the remove button is disabled and we registered we mouseup
+        # beforehand
         if not self.remove['enabled'] and self.click_x != -1:
             # if the click is within the rightmost 10th of the screen
             # or we swiped toward the right direction for more than 1/10th
             # of the screen width
-            if (self.size[0] - pos[0]) <= (self.size[0] / 10) or (pos[0] - self.click_x) >= (self.size[0] / 10):
+            if (self.size[0] - pos[0]) <= (self.size[0] /
+                                           10) or (pos[0] - self.click_x) >= (self.size[0] / 10):
                 log.debug("Detecting a swipe right event")
                 # we reset the click variable
                 self.click_x = -1
@@ -255,7 +259,8 @@ class Slideshow:
 
     def handle_mousedown(self, pos):
         """ Handle a click (mouse down) on the screen """
-        # if the remove button is disabled, we register the x coordinates of the click
+        # if the remove button is disabled, we register the x coordinates of
+        # the click
         if not self.remove['enabled']:
             self.click_x = pos[0]
 

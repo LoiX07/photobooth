@@ -6,7 +6,7 @@ import logging
 if 'PHOTO_LOG' in globals():
     log = PHOTO_LOG
 else:
-     log = logging.getLogger("RASPICAM_LOG")
+    log = logging.getLogger("RASPICAM_LOG")
 
 from datetime import datetime
 from os.path import join
@@ -14,10 +14,11 @@ from time import sleep
 
 try:
     from picamera import PiCamera
-except ImportError :
+except ImportError:
     log.warning("PiCamera cannot be loaded. Probably no device detected")
 
 from .camera import Camera
+
 
 class RaspiCam(Camera):
     """ Camera Raspberry """

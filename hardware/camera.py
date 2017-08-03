@@ -4,6 +4,7 @@
 
 from abc import ABCMeta, abstractmethod
 
+
 class Camera(object):
     """ Metaclass for a camera (raspi or reflex) """
     __metaclass__ = ABCMeta

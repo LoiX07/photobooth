@@ -44,9 +44,9 @@ elif TYPE_CAMERA == 2:
     from hardware import ReflexCam
 
 # Pictures properties
-PICTURE_FOLDER= datetime.now().strftime("%Y-%m-%d_Photomaton")
+PICTURE_FOLDER = datetime.now().strftime("%Y-%m-%d_Photomaton")
 PICTURE_BASENAME = "%H-%M-%S_Photomaton.jpeg"
-PICTURE_SIZE = 0 #TODO: fill in the value
+PICTURE_SIZE = 0  # TODO: fill in the value
 
 # Network parameters
 HOST, PORT = "localhost", 5817
@@ -68,7 +68,7 @@ class Photobooth:
                  shutdown_channel, shutdown_led_channel, lamp_channel):
         """ Initialization """
         # Initialize the parameters
-        self.picture_path = picture_path+"/"+PICTURE_FOLDER
+        self.picture_path = picture_path + "/" + PICTURE_FOLDER
         self.picture_basename = picture_basename
         self.picture_size = picture_size
         self.trigger_channel = trigger_channel
@@ -93,17 +93,18 @@ class Photobooth:
         # Events detection
         pinMode(trigger_channel, INPUT)
         pullUpDnControl(trigger_channel, PUD_UP)
-        wiringPiISR(trigger_channel,INT_EDGE_FALLING, self.take_picture)
+        wiringPiISR(trigger_channel, INT_EDGE_FALLING, self.take_picture)
         pinMode(shutdown_channel, INPUT)
         pullUpDnControl(shutdown_channel, PUD_UP)
         wiringPiISR(shutdown_channel, INT_EDGE_FALLING, self.quit)
 
-        # semaphore on picture taking (to ignore a second clic during a taking picture sequence)
+        # semaphore on picture taking (to ignore a second clic during a taking
+        # picture sequence)
         self.taking_picture = False
 
         # create the compressing process
         self.queue = Queue()
-        self.process = Process(target = self.process_new_picture, args=())
+        self.process = Process(target=self.process_new_picture, args=())
         self.process.start()
 
     def take_picture(self):
@@ -122,10 +123,11 @@ class Photobooth:
                     sleep(1)
             self.count_display.display(0)  # Countdown update
             # Take a picture
-            new_name = self.camera.take_picture(self.picture_path, self.picture_basename)
+            new_name = self.camera.take_picture(
+                self.picture_path, self.picture_basename)
             # Reset the buttons
             self.count_display.switch_off()
-            digitalWrite(self.trigger_led_channel,HIGH)
+            digitalWrite(self.trigger_led_channel, HIGH)
             # send the picture name through a TCP socket
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 # Connect to server and send data
@@ -133,7 +135,7 @@ class Photobooth:
                 sock.sendall(bytes(new_name + "\n", "utf-8"))
             # now put it into the queue
             self.queue.put(new_name)
-            sleep(1)  #TODO : to adjust
+            sleep(1)  # TODO : to adjust
             self.lamp.idle()
             self.count_display.switch_off()
             digitalWrite(self.shutdown_led_channel, 1)
@@ -148,10 +150,10 @@ class Photobooth:
                 # TODO somehow process the new picture
                 # send the picture name through a TCP socket
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                        # Connect to server and send data
-                        sock.connect((HOST, PORT))
-                        # TODO name needs to be changed
-                        sock.sendall(bytes(name + "\n", "utf-8"))
+                    # Connect to server and send data
+                    sock.connect((HOST, PORT))
+                    # TODO name needs to be changed
+                    sock.sendall(bytes(name + "\n", "utf-8"))
 
     def quit(self):
         """ Cleanup function """

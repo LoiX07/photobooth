@@ -176,7 +176,7 @@ class Slideshow:
             self.remove['enabled'] = True
             log.debug('The remove button is now enabled')
             self.remove['size'] = self.display.show_picture(
-                "trash.png", self.remove["size"], self.remove['pos'], alpha=255)
+                "trash.jpg", self.remove["size"], self.remove['pos'], alpha=255)
             log.debug('Size of the display button is %s', self.remove["size"])
             self.display.apply()
             for _ in range(0, 150):

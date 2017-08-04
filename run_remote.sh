@@ -1,2 +1,2 @@
 #!/bin/bash
-./remote_ctrl.py --path test/ --size 800 600 --address localhost --verbose --port 5876 --windowed --time 30
+./remote_ctrl.py --path test/ --size 800 480 --address localhost --verbose --port 5817 --windowed --time 4

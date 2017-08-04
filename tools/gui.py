@@ -61,7 +61,7 @@ class GUIModule:
         """
         return self.size
 
-    def show_picture(self, filename, size=(0, 0), offset=(0, 0), flip=False):
+    def show_picture(self, filename, size=(0, 0), offset=(0, 0), flip=False, alpha=255):
         """
         Display of a picture
         """
@@ -84,12 +84,14 @@ class GUIModule:
                        for a, b, c in zip(offset, size, new_size))
         # Apply scaling and display picture
         image = pygame.transform.scale(image, new_size).convert()
+        image.set_alpha(alpha)
         # Create surface and blit the image to it
         surface = pygame.Surface(new_size)
         surface.blit(image, (0, 0))
         if flip:
             surface = pygame.transform.flip(surface, True, False)
         self.surface_list.append((surface, offset))
+        return new_size
 
     def show_message(self,
                      msg,

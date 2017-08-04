@@ -55,8 +55,8 @@ class Slideshow:
         self.remove = {
             'enabled': False,
             'index': -1,
-            'pos': (10, 10),
-            'size': (0, 0)
+            'pos': (375, 430),
+            'size': (50, 50)
         }
         self.time_before_next = self.display_time
         self.scrolling = True
@@ -175,8 +175,9 @@ class Slideshow:
             self.display.show_picture(new_picture)
             self.remove['enabled'] = True
             log.debug('The remove button is now enabled')
-            self.remove['size'] = self.display.show_button(
-                'remove', self.remove['pos'], color=(0, 0, 0))
+            self.remove['size'] = self.display.show_picture(
+                "trash.png", self.remove["size"], self.remove['pos'], alpha=255)
+            log.debug('Size of the display button is %s', self.remove["size"])
             self.display.apply()
             for _ in range(0, 150):
                 sleep(self.step)

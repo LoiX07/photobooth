@@ -12,7 +12,7 @@ import sys
 from datetime import datetime, timedelta
 from time import sleep
 
-from wiringpi import *
+import RPi.GPIO as GPIO
 from hardware import CountDisplay, Lamp
 from tools.photo_log import PHOTO_LOG as log
 
@@ -51,12 +51,12 @@ PICTURE_BASENAME = "%H-%M-%S_Photomaton.jpeg"
 PICTURE_SIZE = 0  # TODO: fill in the value
 
 # Network parameters
-HOST, PORT = "localhost", 5817
+HOST, PORT = "192.168.12.11", 5817
 
 #####################
 ### Configuration ###
 #####################
-wiringPiSetupGpio()  # use wiringpi numerotation
+GPIO.setmode(GPIO.BCM)
 
 
 ###############
@@ -88,18 +88,18 @@ class Photobooth:
         self.lamp = Lamp(lamp_channel)
 
         # Switch on the lights
-        pinMode(self.trigger_led_channel, OUTPUT)
-        digitalWrite(self.trigger_led_channel, HIGH)
-        pinMode(self.shutdown_led_channel, OUTPUT)
-        digitalWrite(self.shutdown_led_channel, HIGH)
+        GPIO.setup(self.trigger_led_channel, GPIO.OUT)
+        GPIO.output(self.trigger_led_channel, GPIO.HIGH)
+        GPIO.setup(self.shutdown_led_channel, GPIO.OUT)
+        GPIO.output(self.shutdown_led_channel, GPIO.HIGH)
 
         # Events detection
-        pinMode(trigger_channel, INPUT)
-        pullUpDnControl(trigger_channel, PUD_UP)
-        wiringPiISR(trigger_channel, INT_EDGE_FALLING, self.take_picture)
-        pinMode(shutdown_channel, INPUT)
-        pullUpDnControl(shutdown_channel, PUD_UP)
-        wiringPiISR(shutdown_channel, INT_EDGE_FALLING, self.quit)
+        #GPIO.setup(self.trigger_channel, GPIO.IN)
+        GPIO.setup(self.trigger_channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        #wiringPiISR(trigger_channel, INT_EDGE_FALLING, self.take_picture)
+        GPIO.setup(self.shutdown_channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        #GPIO.setup(self.shutdown_channel, GPIO.IN)
+        #wiringPiISR(shutdown_channel, INT_EDGE_FALLING, self.quit)
 
         # semaphore on picture taking (to ignore a second clic during a taking
         # picture sequence)
@@ -109,6 +109,16 @@ class Photobooth:
         self.queue = Queue()
         self.process = Process(target=self.process_new_picture, args=())
         self.process.start()
+        self.run()
+
+    def run(self):
+        while True:
+            if not GPIO.input(self.trigger_channel):
+                print('trigger')
+                self.take_picture()
+            if not GPIO.input(self.shutdown_channel):
+                print('shutdown')
+                self.quit()
 
     def take_picture(self):
         """ Launch the photo sequence """
@@ -119,29 +129,29 @@ class Photobooth:
         else:
             print("taking picture")
             self.picture_time = datetime.now()
-            digitalWrite(self.trigger_led_channel, 0)
+            GPIO.output(self.trigger_led_channel, 0)
             self.camera.prepare_camera()
             # python3 range is python2 xrange
             for i in range(5, 0, -1):
-                self.lamp.set_level(
-                    (5 - i) / 5)  # Progressive increase of the lights
                 self.count_display.display(i)  # Countdown update
                 if i != 0:
                     sleep(1)
             self.count_display.display(0)  # Countdown update
+            self.lamp.on()
             # Take a picture
             new_name = self.camera.take_picture(
                 self.picture_path,datetime.now().strftime(self.picture_basename))
+            print('New picture %s', new_name)
             # Reset the buttons
             self.count_display.switch_off()
-            digitalWrite(self.trigger_led_channel, HIGH)
+            GPIO.output(self.trigger_led_channel, GPIO.HIGH)
             # now put it into the queue
             if new_name:
                 self.queue.put(new_name)
             sleep(1)  # TODO : to adjust
-            self.lamp.idle()
+            self.lamp.off()
             self.count_display.switch_off()
-            digitalWrite(self.shutdown_led_channel, 1)
+            GPIO.output(self.shutdown_led_channel, 1)
 
     def process_new_picture(self):
         while True:
@@ -160,17 +170,19 @@ class Photobooth:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     # Connect to server and send data
                     sock.connect((HOST, PORT))
-                    sock.sendall(bytes(new_path + "\n", "utf-8"))
+                    sock.sendall(bytes(os.path.join(PICTURE_FOLDER, new_image_name) + "\n", "utf-8"))
 
     def quit(self):
         """ Cleanup function """
+        print("Quitting")
         log.debug("Cleaning the photobooth")
         self.queue.put("exit")
         self.camera.close()
         self.lamp.set_level(0)
         self.count_display.switch_off()
-        digitalWrite(self.trigger_led_channel, 0)
-        digitalWrite(self.shutdown_led_channel, 0)
+        GPIO.output(self.trigger_led_channel, 0)
+        GPIO.output(self.shutdown_led_channel, 0)
+        GPIO.cleanup()
         sys.exit()
 
 

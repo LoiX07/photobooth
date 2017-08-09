@@ -41,8 +41,10 @@ class ReflexCam(Camera):
         try:
             file_path = gp.check_result(gp.gp_camera_capture(
                                         self.camera, gp.GP_CAPTURE_IMAGE, self.context))
-        except:
+        except Exception as err:
+            print('Exception %s', err)
             return
+        print('After the exception')
         camera_file = gp.check_result(gp.gp_camera_file_get(
             self.camera, file_path.folder, file_path.name,
             gp.GP_FILE_TYPE_NORMAL, self.context))  # TODO define context ??

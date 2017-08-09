@@ -1,2 +1,2 @@
 #!/bin/bash
-sudo ./photobooth.py --path test/ --out compress/ --verbose
+sudo ./photobooth.py --path /home/pi/camera --out /home/pi/out --verbose

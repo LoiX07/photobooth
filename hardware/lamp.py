@@ -2,7 +2,7 @@
 
 """Lighting module for the photobooth"""
 
-import wiringpi
+import RPi.GPIO as GPIO
 
 from math import *
 
@@ -13,15 +13,12 @@ class Lamp:
     def __init__(self, channel):
         """ Initialization """
         self.channel = channel
-        wiringpi.pinMode(channel, 2)
-        wiringpi.pwmSetMode(wiringpi.PWM_MODE_MS)
+        GPIO.setup(self.channel,GPIO.OUT,initial=GPIO.LOW)
 
-    def idle(self):
+    def off(self):
         """ Set the lights to idle level """
-        # TODO: does it need to be a method?
-        wiringpi.pwmWrite(self.channel, floor(0.1 * 1024))
+        GPIO.output(self.channel,GPIO.LOW)
 
-    def set_level(self, level):
+    def on(self):
         """ Lighting coefficient modification between 0 and 1 """
-        # TODO: does it need to be a method?
-        wiringpi.pwmWrite(self.channel, floor(level * 1024))
+        GPIO.output(self.channel,GPIO.HIGH)

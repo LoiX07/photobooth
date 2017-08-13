@@ -94,11 +94,9 @@ class Photobooth:
         GPIO.output(self.shutdown_led_channel, GPIO.HIGH)
 
         # Events detection
-        #GPIO.setup(self.trigger_channel, GPIO.IN)
         GPIO.setup(self.trigger_channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         #wiringPiISR(trigger_channel, INT_EDGE_FALLING, self.take_picture)
         GPIO.setup(self.shutdown_channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        #GPIO.setup(self.shutdown_channel, GPIO.IN)
         #wiringPiISR(shutdown_channel, INT_EDGE_FALLING, self.quit)
 
         # semaphore on picture taking (to ignore a second clic during a taking
@@ -168,12 +166,13 @@ class Photobooth:
                 new_image_name = os.path.basename(name)
                 new_image_name = os.path.splitext(new_image_name)[0] + ".jpg"
                 new_path = os.path.join(self.picture_compressed_path, new_image_name)
-                image_resized.save(new_path, quality=95, optimize=True, progressive=True)
+                image_resized.save(new_path, quality=98, optimize=True, progressive=True)
                 # send the picture name through a TCP socket
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     # Connect to server and send data
                     sock.connect((HOST, PORT))
                     sock.sendall(bytes(os.path.join(PICTURE_FOLDER, new_image_name) + "\n", "utf-8"))
+            sleep(0.2)
 
     def quit(self):
         """ Cleanup function """

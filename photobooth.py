@@ -108,7 +108,6 @@ class Photobooth:
         # create the compressing process
         self.queue = Queue()
         self.process = Process(target=self.process_new_picture, args=())
-        self.process.start()
         self.run()
 
     def run(self):
@@ -120,9 +119,7 @@ class Photobooth:
                 print('shutdown')
                 self.quit()
 
-        # create the compressing process
-        self.queue = Queue()
-        self.process = Process(target = self.process_new_picture, args=())
+        # launch the compressing process
         self.process.start()
 
     def take_picture(self):

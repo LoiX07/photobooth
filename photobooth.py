@@ -120,6 +120,11 @@ class Photobooth:
                 print('shutdown')
                 self.quit()
 
+        # create the compressing process
+        self.queue = Queue()
+        self.process = Process(target = self.process_new_picture, args=())
+        self.process.start()
+
     def take_picture(self):
         """ Launch the photo sequence """
         # equivalent: if self.taking_picture is False
@@ -154,12 +159,13 @@ class Photobooth:
             GPIO.output(self.shutdown_led_channel, 1)
 
     def process_new_picture(self):
+        """ Process the new picture """
         while True:
             if not self.queue.empty():
                 name = self.queue.get()
                 if name == 'exit':
                     return
-                # TODO somehow process the new picture
+                # Create a compressed picture for faster display
                 image_orig = Image.open(name)
                 image_resized = image_orig.resize((800,480),Image.ANTIALIAS)
                 new_image_name = os.path.basename(name)
@@ -174,7 +180,7 @@ class Photobooth:
 
     def quit(self):
         """ Cleanup function """
-        print("Quitting")
+        log.debug("Quitting")
         log.debug("Cleaning the photobooth")
         self.queue.put("exit")
         self.camera.close()

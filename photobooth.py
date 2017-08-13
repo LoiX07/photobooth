@@ -168,7 +168,7 @@ class Photobooth:
                 new_image_name = os.path.basename(name)
                 new_image_name = os.path.splitext(new_image_name)[0] + ".jpg"
                 new_path = os.path.join(self.picture_compressed_path, new_image_name)
-                image_resized.save(new_path)
+                image_resized.save(new_path, quality=95, optimize=True, progressive=True)
                 # send the picture name through a TCP socket
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     # Connect to server and send data
